@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { Metadata } from 'next';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,24 @@ import { apiRequest } from "@/lib/queryClient";
 import { Wallet, Shield, Coins, ExternalLink, Clock, CheckCircle, Share, Info } from "lucide-react";
 import { farcasterSDK, type FarcasterContext } from "@/components/farcaster-sdk";
 import type { Network } from "@/lib/schema";
+
+export const metadata: Metadata = {
+  title: 'Superchain Faucet Frame',
+  description: 'A Farcaster Frame for the Superchain Faucet',
+  openGraph: {
+    title: 'Superchain Faucet Frame',
+    description: 'A Farcaster Frame for the Superchain Faucet',
+    images: [`/frame-image.png`],
+  },
+  other: {
+    'fc:frame': 'vNext',
+    'fc:frame:image': `/frame-image.png`,
+    'fc:frame:button:1': 'Open Mini App',
+    'fc:frame:button:1:action': 'link',
+    'fc:frame:button:1:target': `/frame`,
+  },
+};
+
 
 interface PassportData {
   score: number;
