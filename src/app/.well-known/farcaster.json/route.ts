@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     // },
     miniapp: {
       version: 'vNext',
-      name: 'SepoliaDrop Faucet',
+      name: 'Superchain Faucet',
       iconUrl: `${baseUrl}/icon.svg`,
       splashImageUrl: `${baseUrl}/splash.svg`,
       homeUrl: `${baseUrl}/frame`,

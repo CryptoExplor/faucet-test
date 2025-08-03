@@ -148,7 +148,7 @@ export default function FarcasterFramePage() {
   };
 
   const shareSuccess = () => {
-    const message = `Just claimed testnet ETH from the SepoliaDrop Faucet! 💧\n\nThanks to the builders for this public good for the Farcaster ecosystem.\n\nTx: ${lastTxHash?.slice(0, 10)}...`;
+    const message = `Just claimed testnet ETH from the Superchain Faucet! 💧\n\nThanks to the builders for this public good for the Farcaster ecosystem.\n\nTx: ${lastTxHash?.slice(0, 10)}...`;
     farcasterSDK.composeCast(message, [window.location.origin]);
   };
 
@@ -176,7 +176,7 @@ export default function FarcasterFramePage() {
                 <Coins className="text-primary-foreground text-lg" />
               </div>
               <div className="flex-1">
-                <h1 className="text-lg font-bold text-foreground">SepoliaDrop Faucet</h1>
+                <h1 className="text-lg font-bold text-foreground">Superchain Faucet</h1>
                 <p className="text-sm text-muted-foreground">Mini App for Farcaster</p>
               </div>
             </div>

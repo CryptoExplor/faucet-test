@@ -190,7 +190,7 @@ export default function Home() {
                 <Coins className="text-primary-foreground text-lg" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">SepoliaDrop</h1>
+                <h1 className="text-2xl font-bold text-foreground">Superchain Faucet</h1>
                 <p className="text-sm text-muted-foreground">A Multi-Chain Faucet for Sepolia Testnets</p>
               </div>
             </div>
@@ -372,7 +372,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <div className="flex items-center space-x-4">
-              <span>© 2024 SepoliaDrop</span>
+              <span>© 2024 Superchain Faucet</span>
             </div>
             <div className="flex items-center space-x-2">
               <span>Powered by </span>

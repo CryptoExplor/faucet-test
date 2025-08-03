@@ -1,11 +1,13 @@
+
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import type { Network } from "@/lib/schema";
 import { Skeleton } from "./ui/skeleton";
+import { Coins } from "lucide-react";
 
 interface NetworkSelectorProps {
   selectedNetwork?: Network | null;
@@ -51,7 +53,7 @@ export function NetworkSelector({ selectedNetwork, onNetworkSelect, className }:
     <Card className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-            <img src="/logo.svg" alt="SepoliaDrop Logo" className="w-6 h-6" />
+            <Coins className="w-5 h-5 text-primary" />
             <span>Select Network</span>
         </CardTitle>
         <CardDescription>Choose a Sepolia testnet to receive funds on.</CardDescription>

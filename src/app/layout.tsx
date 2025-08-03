@@ -6,8 +6,8 @@ import Providers from './providers';
 
 
 export const metadata: Metadata = {
-  title: 'SepoliaDrop Faucet',
-  description: 'A multi-chain faucet for Sepolia testnets.',
+  title: 'Superchain Faucet',
+  description: 'A multi-chain Superchain faucet for Sepolia testnets.',
 };
 
 export default function RootLayout({

@@ -93,7 +93,7 @@ export default function AdminDashboard() {
             <Shield className="h-8 w-8 text-primary" />
             <h1 className="text-4xl font-bold">Admin Dashboard</h1>
           </div>
-          <p className="text-lg text-muted-foreground">Manage SepoliaDrop Faucet</p>
+          <p className="text-lg text-muted-foreground">Manage Superchain Faucet</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
