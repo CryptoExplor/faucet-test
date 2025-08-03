@@ -3,7 +3,7 @@
 
 import { ethers } from "ethers";
 import { z } from "zod";
-import { getNetworkByChainId } from "@/lib/networks";
+import { getNetworkByChainId, getNetworkById } from "@/lib/networks";
 import { db } from "@/lib/db";
 import { faucetClaims } from "@/lib/schema";
 import { and, eq, gte, sql } from "drizzle-orm";
@@ -40,14 +40,15 @@ export async function claimTokens(address: string, chainId: number, passportScor
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const recentClaim = await db.query.faucetClaims.findFirst({
     where: and(
-        eq(faucetClaims.walletAddress, address),
+        eq(faucetClaims.walletAddress, address.toLowerCase()),
         eq(faucetClaims.networkId, selectedChain.id),
         gte(faucetClaims.claimedAt, twentyFourHoursAgo)
     )
   });
 
   if (recentClaim) {
-      return { ok: false, message: "You have already claimed tokens on this network in the last 24 hours." };
+      const nextClaimTime = new Date(recentClaim.claimedAt.getTime() + 24 * 60 * 60 * 1000);
+      return { ok: false, message: `You have already claimed tokens on this network in the last 24 hours. Please try again after ${nextClaimTime.toLocaleString()}.` };
   }
 
 
@@ -87,7 +88,7 @@ export async function claimTokens(address: string, chainId: number, passportScor
     }
 
     await db.insert(faucetClaims).values({
-        walletAddress: address,
+        walletAddress: address.toLowerCase(),
         networkId: selectedChain.id,
         amount: selectedChain.faucetAmount,
         txHash: receipt.hash,
@@ -97,7 +98,7 @@ export async function claimTokens(address: string, chainId: number, passportScor
     });
 
 
-    return { ok: true, txHash: receipt.hash, message: "Transaction successful!" };
+    return { ok: true, txHash: receipt.hash, message: "Transaction successful!", network: selectedChain };
   } catch (error: any) {
     console.error(`Faucet error on chain ${chainId}:`, error);
 
@@ -110,4 +111,29 @@ export async function claimTokens(address: string, chainId: number, passportScor
     
     return { ok: false, message: error.reason || "An unexpected error occurred during the transaction." };
   }
+}
+
+export async function checkRateLimit(address: string, networkId: string) {
+    const network = await getNetworkById(networkId);
+    if (!network) {
+        return { isRateLimited: false, remainingTime: null };
+    }
+
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recentClaim = await db.query.faucetClaims.findFirst({
+        where: and(
+            eq(faucetClaims.walletAddress, address.toLowerCase()),
+            eq(faucetClaims.networkId, networkId),
+            gte(faucetClaims.claimedAt, twentyFourHoursAgo)
+        ),
+        orderBy: (claims, { desc }) => [desc(claims.claimedAt)],
+    });
+
+    if (recentClaim) {
+        const nextClaimTime = new Date(recentClaim.claimedAt.getTime() + 24 * 60 * 60 * 1000);
+        const remainingTime = nextClaimTime.getTime() - Date.now();
+        return { isRateLimited: true, remainingTime: remainingTime > 0 ? remainingTime : 0 };
+    }
+
+    return { isRateLimited: false, remainingTime: null };
 }

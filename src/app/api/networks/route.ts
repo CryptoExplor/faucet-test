@@ -1,10 +1,14 @@
 
-import { getActiveNetworks } from "@/lib/networks";
-import { NextResponse } from "next/server";
+import { getActiveNetworks, getAllNetworks } from "@/lib/networks";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const networks = await getActiveNetworks();
+    const { searchParams } = new URL(req.url);
+    const showAll = searchParams.get('all') === 'true';
+
+    const networks = showAll ? await getAllNetworks() : await getActiveNetworks();
+    
     return NextResponse.json({ networks });
   } catch (error) {
     console.error("Failed to fetch networks:", error);

@@ -53,7 +53,9 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
 });
 
-export const insertNetworkSchema = createInsertSchema(networks).omit({
+export const insertNetworkSchema = createInsertSchema(networks, {
+  chainId: z.number(),
+}).omit({
   id: true,
   createdAt: true,
 });

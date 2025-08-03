@@ -26,7 +26,7 @@ export default function AdminDashboard() {
   const { data: networks, isLoading: isLoadingNetworks } = useQuery<Network[]>({
     queryKey: ["networks"],
     queryFn: async () => {
-      const res = await fetch('/api/networks');
+      const res = await fetch('/api/networks?all=true');
       if(!res.ok) throw new Error("Failed to fetch networks");
       const data = await res.json();
       return data.networks;
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
             <Shield className="h-8 w-8 text-primary" />
             <h1 className="text-4xl font-bold">Admin Dashboard</h1>
           </div>
-          <p className="text-lg text-muted-foreground">Manage Superchain Faucet Networks</p>
+          <p className="text-lg text-muted-foreground">Manage SepoliaDrop Faucet</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -146,7 +146,7 @@ export default function AdminDashboard() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
-                <TrendingUp className="h-8 w-8 text-purple-500" />
+                <TrendingUp className="h-8 w-8 text-accent" />
                 <div>
                   <p className="text-sm text-muted-foreground">Total Claims</p>
                   <p className="text-2xl font-bold">{stats?.totalClaims || 0}</p>
@@ -177,7 +177,7 @@ export default function AdminDashboard() {
               <span>Network Management</span>
             </CardTitle>
             <CardDescription>
-              Control network availability and faucet amounts for each Superchain testnet
+              Control network availability and faucet amounts for each Sepolia testnet
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
