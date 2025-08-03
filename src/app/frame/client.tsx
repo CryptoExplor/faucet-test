@@ -12,7 +12,7 @@ import { Wallet, Shield, Coins, ExternalLink, Clock, CheckCircle, Share, Info } 
 import { farcasterSDK, type FarcasterContext } from "@/components/farcaster-sdk";
 import type { Network } from "@/lib/schema";
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
-import { farcaster } from 'wagmi/connectors';
+import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
 
 interface PassportData {
   score: number;
@@ -67,7 +67,7 @@ export default function FarcasterFrameClient() {
         const context = await farcasterSDK.getContext();
         setFarcasterContext(context);
         if (!isConnected) {
-            connect({ connector: farcaster() });
+            connect({ connector: farcasterMiniApp() });
         }
       } catch (error) {
         console.error('Failed to initialize Farcaster SDK:', error);
