@@ -8,6 +8,9 @@ export async function GET(
 ) {
   try {
     const { address } = params;
+    if (!address) {
+      return NextResponse.json({ message: "Address is required" }, { status: 400 });
+    }
     const result = await getGitcoinPassportScore({ address });
     return NextResponse.json(result);
   } catch (error: any) {
