@@ -28,7 +28,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { getGitcoinPassportScore } from "@/ai/flows/gitcoin-passport-verification";
 import { claimTokens } from "./actions";
 import type { Network } from "@/lib/schema";
 import { Separator } from "@/components/ui/separator";
@@ -39,6 +38,11 @@ import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
 
 const ELIGIBILITY_THRESHOLD = 10;
+
+interface PassportData {
+  score: number;
+  isEligible: boolean;
+}
 
 interface ClaimResult {
     success: boolean;
@@ -54,7 +58,7 @@ export default function Home() {
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
 
-  const [passportScore, setPassportScore] = useState<number | null>(null);
+  const [passportData, setPassportData] = useState<PassportData | null>(null);
   const [isEligible, setIsEligible] = useState<boolean>(false);
   
   const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
@@ -66,7 +70,7 @@ export default function Home() {
 
   const handleDisconnectWallet = () => {
     disconnect();
-    setPassportScore(null);
+    setPassportData(null);
     setSelectedNetwork(null);
     setClaimResult(null);
   };
@@ -75,8 +79,12 @@ export default function Home() {
     setIsLoadingScore(true);
     setClaimResult(null);
     try {
-      const result = await getGitcoinPassportScore({ address: walletAddress });
-      setPassportScore(result.score);
+      const response = await fetch(`/api/passport/${walletAddress}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch passport score');
+      }
+      const result: PassportData = await response.json();
+      setPassportData(result);
       setIsEligible(result.isEligible && result.score >= ELIGIBILITY_THRESHOLD);
     } catch (error) {
       console.error("Error fetching Gitcoin Passport score:", error);
@@ -85,7 +93,7 @@ export default function Home() {
         title: "Error fetching score",
         description: "Could not retrieve your Gitcoin Passport score.",
       });
-      setPassportScore(0);
+      setPassportData({ score: 0, isEligible: false});
       setIsEligible(false);
     } finally {
       setIsLoadingScore(false);
@@ -100,12 +108,12 @@ export default function Home() {
 
 
   const handleClaim = async () => {
-    if (!address || !selectedNetwork?.chainId || passportScore === null) return;
+    if (!address || !selectedNetwork?.chainId || !passportData) return;
     setIsClaiming(true);
     setClaimResult(null);
 
     try {
-      const result = await claimTokens(address, selectedNetwork.chainId, passportScore);
+      const result = await claimTokens(address, selectedNetwork.chainId, passportData.score);
       if (result.ok && result.txHash && result.network) {
         setClaimResult({
           success: true,
@@ -238,12 +246,12 @@ export default function Home() {
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span className="text-muted-foreground">Verifying Passport...</span>
                     </div>
-                  ) : passportScore !== null ? (
+                  ) : passportData !== null ? (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between text-lg">
                         <span className="font-medium">Your Score:</span>
                         <Badge variant={isEligible ? "default" : "destructive"} className="bg-accent text-accent-foreground text-xl px-4 py-2">
-                          {passportScore.toFixed(2)}
+                          {passportData.score.toFixed(2)}
                         </Badge>
                       </div>
                       {isEligible ? (
@@ -332,11 +340,13 @@ export default function Home() {
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <div className="flex items-center space-x-4">
-              <span>© 2024 Superchain Faucet</span>
+              <span>© 2025 Superchain Faucet</span>
             </div>
             <div className="flex items-center space-x-2">
               <span>Powered by </span>
-              <NextLink href="https://superchain.com" target="_blank" className="font-medium text-primary hover:underline">Superchain</NextLink>
+              <a href="https://farcaster.xyz/dare1.eth" target="_blank" rel="noopener noreferrer" aria-label="Farcaster" className="font-medium text-primary hover:underline">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current"><path d="M18.24 0.24H5.76C2.58 0.24 0 2.82 0 6V18C0 21.18 2.58 23.76 5.76 23.76H18.24C21.42 23.76 24 21.18 24 18V6C24 2.82 21.42 0.24 18.24 0.24ZM18 5.76V6C18 6.66 17.46 7.2 16.8 7.2H7.2C6.54 7.2 6 6.66 6 6V5.76C6 5.04 6.54 4.8 7.2 4.8H16.8C17.46 4.8 18 5.04 18 5.76ZM16.8 19.2H7.2C6.54 19.2 6 18.66 6 18V12C6 11.34 6.54 10.8 7.2 10.8H16.8C17.46 10.8 18 11.34 18 12V18C18 18.66 17.46 19.2 16.8 19.2Z"/></svg>
+              </a>
             </div>
           </div>
         </div>
