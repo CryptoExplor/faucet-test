@@ -11,6 +11,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { Wallet, Shield, Coins, ExternalLink, Clock, CheckCircle, Share, Info } from "lucide-react";
 import { farcasterSDK, type FarcasterContext } from "@/components/farcaster-sdk";
 import type { Network } from "@/lib/schema";
+import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { farcaster } from 'wagmi/connectors';
 
 interface PassportData {
   score: number;
@@ -44,10 +46,12 @@ export default function FarcasterFrameClient() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [farcasterContext, setFarcasterContext] = useState<FarcasterContext | null>(null);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
   const [lastClaimNetwork, setLastClaimNetwork] = useState<Network | null>(null);
-
+  
+  const { address: walletAddress, isConnected } = useAccount();
+  const { connect } = useConnect();
+  const { disconnect } = useDisconnect();
 
   // Use Base Sepolia as the default network for the frame
   const { data: networkData } = useQuery<{networks: Network[]}>({
@@ -55,29 +59,28 @@ export default function FarcasterFrameClient() {
   });
   const baseSepolia = networkData?.networks.find(n => n.chainId === 84532);
 
-
-  // Initialize Farcaster SDK
+  // Initialize Farcaster SDK and connect wallet
   useEffect(() => {
+    farcasterSDK.ready();
     const initFarcaster = async () => {
       try {
-        await farcasterSDK.init();
         const context = await farcasterSDK.getContext();
         setFarcasterContext(context);
-        
-        const address = await farcasterSDK.getEthereumProvider();
-        setWalletAddress(address);
+        if (!isConnected) {
+            connect({ connector: farcaster() });
+        }
       } catch (error) {
         console.error('Failed to initialize Farcaster SDK:', error);
         toast({
           title: "Connection Error",
-          description: "Failed to connect to Farcaster",
+          description: "Not in a Farcaster client.",
           variant: "destructive",
         });
       }
     };
 
     initFarcaster();
-  }, [toast]);
+  }, [toast, connect, isConnected]);
 
   // Fetch Gitcoin Passport score
   const { data: passportData, isLoading: passportLoading, error: passportError } = useQuery<PassportData>({
@@ -144,12 +147,15 @@ export default function FarcasterFrameClient() {
 
   const openTransaction = (hash: string) => {
     const explorer = lastClaimNetwork?.explorerUrl || "https://sepolia.basescan.org";
-    farcasterSDK.openUrl(`${explorer}/tx/${hash}`);
+    farcasterSDK.openUrl({url: `${explorer}/tx/${hash}`});
   };
 
   const shareSuccess = () => {
     const message = `Just claimed testnet ETH from the Superchain Faucet! 💧\n\nThanks to the builders for this public good for the Farcaster ecosystem.\n\nTx: ${lastTxHash?.slice(0, 10)}...`;
-    farcasterSDK.composeCast(message, [window.location.origin]);
+    farcasterSDK.composeCast({
+        text: message,
+        embeds: [{url: window.location.origin}]
+    });
   };
 
   const isEligible = passportData && passportData.score >= 10;

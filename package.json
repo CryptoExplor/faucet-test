@@ -40,6 +40,7 @@
     "@radix-ui/react-tooltip": "^1.1.8",
     "@tanstack/react-query": "^5.51.15",
     "@upstash/redis": "^1.33.0",
+    "@web3modal/wagmi": "^5.0.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
@@ -59,6 +60,8 @@
     "recharts": "^2.15.1",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
+    "viem": "^2.17.4",
+    "wagmi": "^2.12.1",
     "ws": "^8.18.0",
     "zod": "^3.24.2"
   },

@@ -34,8 +34,8 @@ import type { Network } from "@/lib/schema";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ethers, type BrowserProvider } from "ethers";
-import { useQuery } from "@tanstack/react-query";
+import { useAccount, useDisconnect } from "wagmi";
+import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
 
 const ELIGIBILITY_THRESHOLD = 10;
@@ -50,8 +50,10 @@ interface ClaimResult {
 }
 
 export default function Home() {
-  const [provider, setProvider] = useState<BrowserProvider | null>(null);
-  const [address, setAddress] = useState<string | null>(null);
+  const { open } = useWeb3Modal()
+  const { address, isConnected } = useAccount()
+  const { disconnect } = useDisconnect()
+
   const [passportScore, setPassportScore] = useState<number | null>(null);
   const [isEligible, setIsEligible] = useState<boolean>(false);
   
@@ -62,37 +64,11 @@ export default function Home() {
 
   const { toast } = useToast();
 
-  const connectWallet = useCallback(async () => {
-    if (typeof window.ethereum === "undefined") {
-      toast({
-        variant: "destructive",
-        title: "MetaMask not found",
-        description: "Please install MetaMask to use this app.",
-      });
-      return;
-    }
-
-    try {
-      const browserProvider = new ethers.BrowserProvider(window.ethereum);
-      setProvider(browserProvider);
-      const accounts = await browserProvider.send("eth_requestAccounts", []);
-      setAddress(accounts[0]);
-    } catch (error) {
-      console.error("Error connecting wallet:", error);
-      toast({
-        variant: "destructive",
-        title: "Wallet Connection Failed",
-        description: "Could not connect to your MetaMask wallet.",
-      });
-    }
-  }, [toast]);
-
   const handleDisconnectWallet = () => {
-    setAddress(null);
+    disconnect();
     setPassportScore(null);
     setSelectedNetwork(null);
     setClaimResult(null);
-    setProvider(null);
   };
 
   const fetchScore = useCallback(async (walletAddress: string) => {
@@ -122,21 +98,6 @@ export default function Home() {
     }
   }, [address, fetchScore]);
 
-  useEffect(() => {
-    if(typeof window.ethereum === 'undefined') return;
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length === 0) {
-        handleDisconnectWallet();
-      } else {
-        setAddress(accounts[0]);
-      }
-    };
-
-    window.ethereum?.on("accountsChanged", handleAccountsChanged);
-    return () => {
-      window.ethereum?.removeListener("accountsChanged", handleAccountsChanged);
-    };
-  }, []);
 
   const handleClaim = async () => {
     if (!address || !selectedNetwork?.chainId || passportScore === null) return;
@@ -178,7 +139,6 @@ export default function Home() {
   };
 
   const canClaim = isEligible && selectedNetwork && !isClaiming;
-  const isConnected = !!address;
 
   return (
     <div className="min-h-screen bg-secondary">
@@ -225,8 +185,8 @@ export default function Home() {
               <CardContent>
                 {!isConnected ? (
                   <div>
-                    <Button onClick={connectWallet} disabled={isClaiming} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                      Connect MetaMask
+                    <Button onClick={() => open()} disabled={isClaiming} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+                      Connect Wallet
                     </Button>
                     <p className="text-sm text-muted-foreground mt-2 text-center">
                       Connect your wallet to check eligibility and claim test ETH
@@ -240,7 +200,7 @@ export default function Home() {
                          <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => copyToClipboard(address)}
+                            onClick={() => copyToClipboard(address as string)}
                             className="text-primary hover:text-primary/90 h-auto p-1"
                           >
                            <Copy className="mr-1 h-3 w-3" />
