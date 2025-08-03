@@ -1,8 +1,9 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import NextLink from "next/link";
+import { useSearchParams } from 'next/navigation';
 import {
   Wallet,
   BadgeCheck,
@@ -36,6 +37,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAccount, useDisconnect } from "wagmi";
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
+import { getNetworkById, getActiveNetworks } from "@/lib/networks";
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -53,7 +55,7 @@ interface ClaimResult {
     error?: string;
 }
 
-export default function Home() {
+function HomeComponent() {
   const { open } = useWeb3Modal()
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
@@ -67,11 +69,32 @@ export default function Home() {
   const [claimResult, setClaimResult] = useState<ClaimResult | null>(null);
 
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const m = searchParams.get('m');
+    if (m === 'i') {
+      const sepoliaNetwork = getNetworkById("sepolia");
+      if (sepoliaNetwork) {
+        setSelectedNetwork(sepoliaNetwork);
+      }
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    // Set default network if none is selected
+    if (!selectedNetwork) {
+      const activeNetworks = getActiveNetworks();
+      if (activeNetworks.length > 0) {
+        setSelectedNetwork(activeNetworks[0]);
+      }
+    }
+  }, [selectedNetwork]);
+
 
   const handleDisconnectWallet = () => {
     disconnect();
     setPassportData(null);
-    setSelectedNetwork(null);
     setClaimResult(null);
   };
 
@@ -81,17 +104,18 @@ export default function Home() {
     try {
       const response = await fetch(`/api/passport/${walletAddress}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch passport score');
+        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch passport score' }));
+        throw new Error(errorData.message);
       }
       const result: PassportData = await response.json();
       setPassportData(result);
-      setIsEligible(result.isEligible && result.score >= ELIGIBILITY_THRESHOLD);
-    } catch (error) {
+      setIsEligible(result.score >= ELIGIBILITY_THRESHOLD);
+    } catch (error: any) {
       console.error("Error fetching Gitcoin Passport score:", error);
       toast({
         variant: "destructive",
         title: "Error fetching score",
-        description: "Could not retrieve your Gitcoin Passport score.",
+        description: error.message || "Could not retrieve your Gitcoin Passport score.",
       });
       setPassportData({ score: 0, isEligible: false});
       setIsEligible(false);
@@ -108,7 +132,7 @@ export default function Home() {
 
 
   const handleClaim = async () => {
-    if (!address || !selectedNetwork?.chainId || !passportData) return;
+    if (!address || !selectedNetwork?.chainId || passportData === null) return;
     setIsClaiming(true);
     setClaimResult(null);
 
@@ -352,5 +376,13 @@ export default function Home() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeComponent />
+    </Suspense>
   );
 }

@@ -1,8 +1,18 @@
-
 import { type Network } from "./schema";
 
 // Comprehensive Superchain Network configurations - ordered display
 export const SUPPORTED_NETWORKS: (Omit<Network, 'createdAt'>)[] = [
+  {
+    id: "sepolia",
+    name: "Sepolia",
+    chainId: 11155111,
+    rpcUrl: process.env.SEPOLIA_RPC_URL || "https://rpc.sepolia.org",
+    nativeCurrency: "ETH",
+    explorerUrl: "https://sepolia.etherscan.io",
+    faucetAmount: "0.001",
+    isActive: true,
+    iconUrl: "/networks/ethereum.svg",
+  },
   {
     id: "base-sepolia",
     name: "Base Sepolia",
