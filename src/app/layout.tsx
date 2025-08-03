@@ -4,8 +4,9 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import Providers from './providers';
 
-const VERCEL_URL = process.env.VERCEL_URL || 'http://localhost:9002';
-const baseUrl = process.env.NEXT_PUBLIC_HOST || VERCEL_URL;
+const VERCEL_URL = process.env.VERCEL_URL || 'localhost:9002';
+const baseUrl = process.env.NEXT_PUBLIC_HOST ? process.env.NEXT_PUBLIC_HOST : `https://${VERCEL_URL}`;
+
 
 export const metadata: Metadata = {
   title: 'Superchain Faucet',

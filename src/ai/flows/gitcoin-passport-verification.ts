@@ -21,12 +21,8 @@ const GitcoinPassportScoreOutputSchema = z.object({
 });
 export type GitcoinPassportScoreOutput = z.infer<typeof GitcoinPassportScoreOutputSchema>;
 
-export async function getGitcoinPassportScore(input: GitcoinPassportScoreInput): Promise<GitcoinPassportScoreOutput> {
-  return gitcoinPassportScoreFlow(input);
-}
-
 const getGitcoinPassportScoreTool = ai.defineTool({
-    name: 'getGitcoinPassportScore',
+    name: 'getGitcoinPassportScoreTool',
     description: 'Retrieves the Gitcoin Passport score for a given Ethereum address from the Gitcoin API.',
     inputSchema: z.object({
         address: z.string().describe('The Ethereum address to check.')
@@ -99,7 +95,7 @@ const gitcoinPassportScorePrompt = ai.definePrompt({
   tools: [getGitcoinPassportScoreTool],
   input: {schema: GitcoinPassportScoreInputSchema},
   output: {schema: GitcoinPassportScoreOutputSchema},
-  prompt: `You are an assistant that helps determine if a user is eligible for claiming tokens based on their Gitcoin Passport score.\n  The eligibility threshold is 10. Use the getGitcoinPassportScore tool to retrieve the user's score, and then determine if they are eligible. Return the score and eligibility status in the output schema format.\n\n  Address: {{{address}}}`,
+  prompt: `You are an assistant that helps determine if a user is eligible for claiming tokens based on their Gitcoin Passport score.\n  The eligibility threshold is 10. Use the getGitcoinPassportScoreTool to retrieve the user's score, and then determine if they are eligible. Return the score and eligibility status in the output schema format.\n\n  Address: {{{address}}}`,
 });
 
 const gitcoinPassportScoreFlow = ai.defineFlow(
@@ -113,3 +109,7 @@ const gitcoinPassportScoreFlow = ai.defineFlow(
     return output!;
   }
 );
+
+export async function getGitcoinPassportScore(input: GitcoinPassportScoreInput): Promise<GitcoinPassportScoreOutput> {
+  return gitcoinPassportScoreFlow(input);
+}
