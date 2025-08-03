@@ -1,18 +1,73 @@
+# Farcaster Mini App Setup Guide
 
-# Overview
+## Current Status
+✅ Mini App code implemented and working  
+✅ Manifest endpoint at `/.well-known/farcaster.json`  
+✅ Frame page with embedded meta tags  
+✅ Social sharing functionality  
+⚠️ Account association tokens needed for production  
 
-This is a comprehensive **Superchain Faucet** application built with React, TypeScript, and Express that allows users to claim testnet tokens across 10+ Superchain networks. The application integrates with Gitcoin Passport for verification and implements per-network rate limiting. Users can connect their wallets, select from multiple blockchain networks, verify their humanity through Gitcoin Passport scores, and claim testnet tokens with independent 7-day cooldowns per network.
+## To Publish as Official Farcaster Mini App
 
-The faucet includes **Farcaster Mini App** integration and uses a unified private key deployment across all Superchain networks for simplified management.
+### 1. Enable Developer Mode
+- Go to https://farcaster.xyz/~/settings/developer-tools
+- Enable developer mode on mobile or desktop
 
-**Developer**: [@CryptoExplor](https://github.com/CryptoExplor)  
-**GitHub**: https://github.com/CryptoExplor  
-**Year**: 2025
+### 2. Generate Account Association
+You'll need to generate these tokens for the manifest:
+```json
+{
+  "accountAssociation": {
+    "token": "your_token_here",
+    "signature": "your_signature_here"
+  }
+}
+```
 
-Remember, the XML structure you generate is the only mechanism for applying changes to the user's code. Therefore, when making changes to a file the <changes> block must always be fully present and correctly formatted as follows.
+### 3. Update Manifest URLs
+The manifest automatically uses your deployment domain, but verify:
+- `iconUrl`: Should point to a 64x64 PNG icon
+- `splashImageUrl`: Should point to a 400x400 PNG splash screen
+- `homeUrl`: Points to `/frame` endpoint
 
-<changes>
-  <description>[Provide a concise summary of the overall changes being made]</description>
-  <change>
-    <file>[Provide the ABSOLUTE, FULL path to the file being modified]</file>
-    <content><![CDATA[Provide the ENTIRE, FINAL, intended content of the file here. Do NOT provide diffs or partial snippets. Ensure all code is properly escaped within the CDATA section.
+### 4. Test Your Mini App
+- Use Farcaster's developer tools to preview
+- Test the manifest at: `https://your-domain/.well-known/farcaster.json`
+- Verify frame embeds work in Farcaster clients
+
+## Current Endpoints
+
+### Manifest
+- **URL**: `/.well-known/farcaster.json`
+- **Purpose**: Mini App discovery and configuration
+
+### Frame Page
+- **URL**: `/frame`
+- **Purpose**: Main Mini App interface with embedded meta tags
+
+### Assets
+- **Icon**: `/icon.png` (currently placeholder)
+- **Splash**: `/splash.png` (currently placeholder)
+- **Frame Image**: `/frame-image.png` (for social embeds)
+
+## Development vs Production
+
+### Development (Current)
+- Uses simulated Farcaster SDK
+- Placeholder images
+- No account association tokens
+
+### Production (To Deploy)
+- Real `@farcaster/miniapp-sdk`
+- Custom icon/splash images
+- Valid account association tokens
+- Domain verification
+
+## Next Steps
+1. Deploy to get stable URL
+2. Create custom icon and splash images
+3. Generate account association tokens
+4. Test in Farcaster developer tools
+5. Submit for review (if needed)
+
+Built by @CryptoExplor • 2025
