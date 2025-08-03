@@ -37,9 +37,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAccount, useDisconnect } from "wagmi";
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
-import { getNetworkById, getActiveNetworks } from "@/lib/networks";
+import { getNetworkById } from "@/lib/networks";
 import { usePassport } from "@/lib/passport/hooks";
 import { PassportStatus } from "@/lib/passport/types";
+import { useQuery } from "@tanstack/react-query";
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -65,6 +66,13 @@ function HomeComponent() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
 
+  // Fetch active networks
+  const { data: networkData } = useQuery<{ networks: Network[] }>({
+    queryKey: ["/api/networks"],
+  });
+  const activeNetworks = networkData?.networks || [];
+
+
   useEffect(() => {
     const m = searchParams.get('m');
     if (m === 'i') {
@@ -76,14 +84,11 @@ function HomeComponent() {
   }, [searchParams]);
 
   useEffect(() => {
-    // Set default network if none is selected
-    if (!selectedNetwork) {
-      const activeNetworks = getActiveNetworks();
-      if (activeNetworks.length > 0) {
+    // Set default network if none is selected and networks are loaded
+    if (!selectedNetwork && activeNetworks.length > 0) {
         setSelectedNetwork(activeNetworks[0]);
-      }
     }
-  }, [selectedNetwork]);
+  }, [selectedNetwork, activeNetworks]);
 
 
   const handleDisconnectWallet = () => {
@@ -271,8 +276,8 @@ function HomeComponent() {
                   ) : (
                     <div className="text-center py-4">
                         <p className="text-muted-foreground mb-4">Could not find a Gitcoin Passport for this address.</p>
-                        <Button onClick={() => passportSubmit.mutate()} disabled={passportSubmit.isLoading}>
-                            {passportSubmit.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        <Button onClick={() => passportSubmit.mutate()} disabled={passportSubmit.isPending}>
+                            {passportSubmit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             Create/Refresh Passport
                         </Button>
                     </div>
