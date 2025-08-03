@@ -5,20 +5,20 @@ import { ethers } from "ethers";
 import { z } from "zod";
 import { getNetworkByChainId } from "@/lib/networks";
 import { db } from "@/lib/db";
-import { faucetClaims, networks } from "@/lib/schema";
-import { and, eq, gte } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { faucetClaims } from "@/lib/schema";
+import { and, eq, gte, sql } from "drizzle-orm";
 
 
-export async function claimTokens(address: string, chainId: number) {
+export async function claimTokens(address: string, chainId: number, passportScore: number) {
   const schema = z.object({
     address: z.string().refine((addr) => ethers.isAddress(addr), {
       message: "Invalid Ethereum address provided.",
     }),
     chainId: z.number().int(),
+    passportScore: z.number(),
   });
 
-  const validation = schema.safeParse({ address, chainId });
+  const validation = schema.safeParse({ address, chainId, passportScore });
   if (!validation.success) {
     return { ok: false, message: validation.error.errors[0].message };
   }
@@ -26,6 +26,15 @@ export async function claimTokens(address: string, chainId: number) {
   const selectedChain = await getNetworkByChainId(chainId);
   if (!selectedChain) {
     return { ok: false, message: "Unsupported chain ID." };
+  }
+  
+  if (!selectedChain.isActive) {
+      return { ok: false, message: `${selectedChain.name} faucet is currently disabled.` };
+  }
+
+  // Verify Passport score threshold
+  if (passportScore < 10) {
+    return { ok: false, message: "Insufficient Gitcoin Passport score. Minimum required: 10" };
   }
 
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -45,7 +54,7 @@ export async function claimTokens(address: string, chainId: number) {
   const mnemonic = process.env.FAUCET_MNEMONIC;
   if (!mnemonic) {
     console.error("FAUCET_MNEMONIC not set in .env file");
-    return { ok: false, message: "Server configuration error." };
+    return { ok: false, message: "Server configuration error. Faucet is not configured." };
   }
   
   const rpcUrl = selectedChain.rpcUrl;
@@ -84,6 +93,7 @@ export async function claimTokens(address: string, chainId: number) {
         txHash: receipt.hash,
         blockNumber: receipt.blockNumber,
         gasUsed: receipt.gasUsed.toString(),
+        passportScore: String(passportScore),
     });
 
 
@@ -93,6 +103,9 @@ export async function claimTokens(address: string, chainId: number) {
 
     if (error.code === 'INSUFFICIENT_FUNDS') {
         return { ok: false, message: "Faucet is out of funds on this network." };
+    }
+     if (error.code === 'NETWORK_ERROR') {
+        return { ok: false, message: "Network error. Please try again later." };
     }
     
     return { ok: false, message: error.reason || "An unexpected error occurred during the transaction." };

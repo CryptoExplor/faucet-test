@@ -64,6 +64,9 @@ export default function Home() {
         const res = await fetch('/api/networks');
         const data = await res.json();
         setNetworks(data.networks);
+        if (data.networks.length > 0) {
+          setSelectedChainId(String(data.networks[0].chainId));
+        }
     }
     fetchNetworks();
   }, []);
@@ -96,13 +99,16 @@ export default function Home() {
   const handleDisconnectWallet = () => {
     setAddress(null);
     setPassportScore(null);
-    setSelectedChainId("");
+    if(networks.length > 0) {
+      setSelectedChainId(String(networks[0].chainId));
+    }
     setClaimResult(null);
     setProvider(null);
   };
 
   const fetchScore = useCallback(async (walletAddress: string) => {
     setIsLoadingScore(true);
+    setClaimResult(null);
     try {
       const result = await getGitcoinPassportScore({ address: walletAddress });
       setPassportScore(result.score);
@@ -144,12 +150,12 @@ export default function Home() {
   }, []);
 
   const handleClaim = async () => {
-    if (!address || !selectedChainId) return;
+    if (!address || !selectedChainId || passportScore === null) return;
     setIsClaiming(true);
     setClaimResult(null);
 
     try {
-      const result = await claimTokens(address, parseInt(selectedChainId, 10));
+      const result = await claimTokens(address, parseInt(selectedChainId, 10), passportScore);
       if (result.ok) {
         const selectedNetwork = networks.find(n => n.chainId === parseInt(selectedChainId));
         setClaimResult({
@@ -157,12 +163,21 @@ export default function Home() {
           txHash: result.txHash,
           amount: `${selectedNetwork?.faucetAmount} ETH`
         });
+        toast({
+            title: "Claim Successful!",
+            description: `Sent ${selectedNetwork?.faucetAmount} ETH to your wallet.`,
+        });
 
       } else {
         throw new Error(result.message);
       }
     } catch (error: any) {
         setClaimResult({ success: false, error: error.message || "An unknown error occurred." });
+         toast({
+            variant: "destructive",
+            title: "Claim Failed",
+            description: error.message || "An unknown error occurred.",
+        });
     } finally {
       setIsClaiming(false);
     }
@@ -289,51 +304,38 @@ export default function Home() {
                 )}
               </Button>
             </CardContent>
-          </Card>
-        )}
-
-        {claimResult && (
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {claimResult.success ? (
-                  <CheckCircle2 className="h-6 w-6 text-green-500" />
-                ) : (
-                  <XCircle className="h-6 w-6 text-red-500" />
-                )}
-                <span className={claimResult.success ? "text-green-500" : "text-red-500"}>
-                    {claimResult.success ? "Claim Successful!" : "Claim Failed"}
-                </span>
-              </CardTitle>
-            </Header>
-            <CardContent className="space-y-4 text-sm">
-              {claimResult.success ? (
-                <>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Amount:</span>
-                      <span className="font-mono">{claimResult.amount}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Network:</span>
-                      <span className="font-medium">{selectedNetwork?.name}</span>
-                    </div>
-                  </div>
-                  <Separator />
-                  <div className="space-y-2">
-                    <span className="text-sm text-muted-foreground">Transaction:</span>
-                     <a href={`${selectedNetwork?.explorerUrl}/tx/${claimResult.txHash}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-muted rounded-md hover:bg-secondary transition-colors">
-                      <code className="text-xs break-all text-primary">{claimResult.txHash}</code>
-                      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    </a>
-                  </div>
-                </>
-              ) : (
-                <Alert variant="destructive">
-                  <AlertDescription>{claimResult.error}</AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
+            {claimResult && (
+              <CardFooter>
+                 {claimResult.success ? (
+                    <Alert className="w-full border-green-500 bg-green-50 text-green-700">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <AlertDescription>
+                       <div className="space-y-2">
+                          <div className="font-bold">Claim Successful!</div>
+                          <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Amount:</span>
+                              <span className="font-mono">{claimResult.amount}</span>
+                          </div>
+                           <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Network:</span>
+                              <span className="font-medium">{selectedNetwork?.name}</span>
+                          </div>
+                          <Separator className="my-1"/>
+                           <a href={`${selectedNetwork?.explorerUrl}/tx/${claimResult.txHash}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 pt-1 hover:underline">
+                              <span className="text-xs break-all text-primary ">{claimResult.txHash}</span>
+                              <ExternalLink className="h-3 w-3 shrink-0" />
+                          </a>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <Alert variant="destructive" className="w-full">
+                       <XCircle className="h-4 w-4" />
+                       <AlertDescription>{claimResult.error}</AlertDescription>
+                    </Alert>
+                  )}
+              </CardFooter>
+            )}
           </Card>
         )}
 
