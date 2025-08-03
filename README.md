@@ -1,43 +1,18 @@
-# SepoliaDrop Faucet
 
-This is a Next.js application that functions as a multi-chain faucet for various Sepolia testnets. It allows users to connect their MetaMask wallet, verify their humanity using a Gitcoin Passport score, and claim testnet ETH on a supported network.
+# Overview
 
-## Features
+This is a comprehensive **Superchain Faucet** application built with React, TypeScript, and Express that allows users to claim testnet tokens across 10+ Superchain networks. The application integrates with Gitcoin Passport for verification and implements per-network rate limiting. Users can connect their wallets, select from multiple blockchain networks, verify their humanity through Gitcoin Passport scores, and claim testnet tokens with independent 7-day cooldowns per network.
 
-- **Wallet Connection**: Connect with MetaMask.
-- **Multi-Chain Support**: Dispenses funds on 10 different Sepolia testnets.
-- **Sybil Resistance**: Uses Gitcoin Passport score to determine eligibility for claiming tokens.
-- **Modern UI**: Built with Next.js, TypeScript, and shadcn/ui for a clean, responsive, and world-class user experience.
-- **Server-Side Logic**: Securely handles faucet drips using Next.js Server Actions.
+The faucet includes **Farcaster Mini App** integration and uses a unified private key deployment across all Superchain networks for simplified management.
 
-## Getting Started
+**Developer**: [@CryptoExplor](https://github.com/CryptoExplor)  
+**GitHub**: https://github.com/CryptoExplor  
+**Year**: 2025
 
-To get started, you'll need to set up your environment variables. Create a `.env.local` file in the root of the project and add the following:
+Remember, the XML structure you generate is the only mechanism for applying changes to the user's code. Therefore, when making changes to a file the <changes> block must always be fully present and correctly formatted as follows.
 
-```
-# The mnemonic for the wallet that will be used to dispense funds.
-# IMPORTANT: This wallet must be funded with testnet ETH on all supported chains.
-FAUCET_MNEMONIC="your twelve word mnemonic phrase here"
-
-# RPC URLs for each supported Sepolia testnet.
-# You can get these from providers like Infura, Alchemy, or public RPC lists.
-BASE_SEPOLIA_RPC_URL="https://sepolia.base.org"
-OPTIMISM_SEPOLIA_RPC_URL="https://sepolia.optimism.io"
-ARBITRUM_SEPOLIA_RPC_URL="https://sepolia-rollup.arbitrum.io/rpc"
-// ... and so on for all 10 chains
-INK_SEPOLIA_RPC_URL="..."
-MODE_SEPOLIA_RPC_URL="..."
-ZORA_SEPOLIA_RPC_URL="..."
-UNICHANNEL_SEPOLIA_RPC_URL="..."
-BLAST_SEPOLIA_RPC_URL="..."
-FRAX_SEPOLIA_RPC_URL="..."
-CYBER_SEPOLIA_RPC_URL="..."
-```
-
-Then, run the development server:
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:9002](http://localhost:9002) with your browser to see the result.
+<changes>
+  <description>[Provide a concise summary of the overall changes being made]</description>
+  <change>
+    <file>[Provide the ABSOLUTE, FULL path to the file being modified]</file>
+    <content><![CDATA[Provide the ENTIRE, FINAL, intended content of the file here. Do NOT provide diffs or partial snippets. Ensure all code is properly escaped within the CDATA section.
