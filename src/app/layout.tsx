@@ -5,11 +5,12 @@ import { Toaster } from "@/components/ui/toaster"
 import Providers from './providers';
 
 const VERCEL_URL = process.env.VERCEL_URL || 'http://localhost:9002';
+const baseUrl = process.env.NEXT_PUBLIC_HOST || VERCEL_URL;
 
 export const metadata: Metadata = {
   title: 'Superchain Faucet',
   description: 'A multi-chain Superchain faucet for Sepolia testnets.',
-  metadataBase: new URL(VERCEL_URL),
+  metadataBase: new URL(baseUrl),
 };
 
 export default function RootLayout({
