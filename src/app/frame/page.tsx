@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   other: {
     'fc:frame': 'vNext',
     'fc:frame:image': `${baseUrl}/frame-image.png`,
-    'fc:frame:button:1': 'Open Mini App',
+    'fc:frame:button:1': '🚰 Claim Test ETH',
     'fc:frame:button:1:action': 'link',
     'fc:frame:button:1:target': `${baseUrl}/`,
   },
