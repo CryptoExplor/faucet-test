@@ -21,3 +21,10 @@ export async function GET(
     );
   }
 }
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { address: string } }
+) {
+  return GET(req, { params });
+}

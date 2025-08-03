@@ -38,7 +38,8 @@ import { useAccount, useDisconnect } from "wagmi";
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
 import { getNetworkById, getActiveNetworks } from "@/lib/networks";
-import { usePassport } from "@/lib/passport/context";
+import { usePassport } from "@/lib/passport/hooks";
+import { PassportStatus } from "@/lib/passport/types";
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -55,7 +56,7 @@ function HomeComponent() {
   const { open } = useWeb3Modal()
   const { isConnected, address } = useAccount()
   const { disconnect } = useDisconnect()
-  const { score: passportData, submit } = usePassport();
+  const { score: passportQuery, submit: passportSubmit } = usePassport();
 
   const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
@@ -91,23 +92,23 @@ function HomeComponent() {
   };
   
   useEffect(() => {
-    if (passportData.error) {
+    if (passportQuery.error) {
       toast({
         variant: "destructive",
         title: "Error fetching score",
-        description: passportData.error.message || "Could not retrieve your Gitcoin Passport score.",
+        description: passportQuery.error.message || "Could not retrieve your Gitcoin Passport score.",
       });
     }
-  }, [passportData.error, toast]);
+  }, [passportQuery.error, toast]);
 
 
   const handleClaim = async () => {
-    if (!address || !selectedNetwork?.chainId || !passportData.data) return;
+    if (!address || !selectedNetwork?.chainId || !passportQuery.data?.score) return;
     setIsClaiming(true);
     setClaimResult(null);
 
     try {
-      const result = await claimTokens(address, selectedNetwork.chainId, passportData.data.score);
+      const result = await claimTokens(address, selectedNetwork.chainId, passportQuery.data.score);
       if (result.ok && result.txHash && result.network) {
         setClaimResult({
           success: true,
@@ -121,7 +122,7 @@ function HomeComponent() {
             description: `Sent ${result.network.faucetAmount} ${result.network.nativeCurrency} to your wallet.`,
         });
         // Refetch score to update rate limiting display implicitly
-        passportData.refetch();
+        passportQuery.refetch();
       } else {
         throw new Error(result.message);
       }
@@ -140,7 +141,8 @@ function HomeComponent() {
     });
   };
 
-  const isEligible = passportData.data?.isEligible ?? false;
+  const passportData = passportQuery.data;
+  const isEligible = passportData?.isEligible ?? false;
   const canClaim = isEligible && selectedNetwork && !isClaiming;
 
   return (
@@ -236,17 +238,17 @@ function HomeComponent() {
                       <BadgeCheck className="text-muted-foreground/50 text-3xl mx-auto mb-3" />
                       <p className="text-muted-foreground">Connect your wallet to check your score</p>
                     </div>
-                  ) : passportData.isLoading ? (
+                  ) : passportQuery.isLoading || passportData?.status === PassportStatus.PROCESSING ? (
                     <div className="flex items-center justify-center gap-2 p-4">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span className="text-muted-foreground">Verifying Passport...</span>
                     </div>
-                  ) : passportData.data ? (
+                  ) : passportData?.status === PassportStatus.DONE ? (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between text-lg">
                         <span className="font-medium">Your Score:</span>
                         <Badge variant={isEligible ? "default" : "destructive"} className="bg-accent text-accent-foreground text-xl px-4 py-2">
-                          {passportData.data.score.toFixed(2)}
+                          {passportData.score.toFixed(2)}
                         </Badge>
                       </div>
                       {isEligible ? (
@@ -269,8 +271,8 @@ function HomeComponent() {
                   ) : (
                     <div className="text-center py-4">
                         <p className="text-muted-foreground mb-4">Could not find a Gitcoin Passport for this address.</p>
-                        <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
-                            {submit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        <Button onClick={() => passportSubmit.mutate()} disabled={passportSubmit.isLoading}>
+                            {passportSubmit.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             Create/Refresh Passport
                         </Button>
                     </div>

@@ -3,7 +3,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import Providers from './providers';
-import { PassportProvider } from '@/lib/passport/context';
+import { PassportProvider } from '@/lib/passport/Provider';
 
 const VERCEL_URL = process.env.VERCEL_URL || 'localhost:9002';
 const baseUrl = process.env.NEXT_PUBLIC_HOST ? process.env.NEXT_PUBLIC_HOST : `https://${VERCEL_URL}`;
