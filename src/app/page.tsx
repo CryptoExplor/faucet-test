@@ -1,16 +1,12 @@
-
 "use client";
 
-import { useState, useEffect, useCallback, type FC } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ethers, type BrowserProvider } from "ethers";
 import {
   Wallet,
-  Network,
   BadgeCheck,
-  LoaderCircle,
   CheckCircle2,
   XCircle,
-  ChevronRight,
   Send,
   ExternalLink,
   CheckCircle,
@@ -35,7 +31,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getGitcoinPassportScore } from "@/ai/flows/gitcoin-passport-verification";
 import { claimTokens } from "./actions";
-import { chains } from "@/lib/chains";
+import type { Network } from "@/lib/schema";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -55,13 +51,22 @@ export default function Home() {
   const [address, setAddress] = useState<string | null>(null);
   const [passportScore, setPassportScore] = useState<number | null>(null);
   const [isEligible, setIsEligible] = useState<boolean>(false);
+  const [networks, setNetworks] = useState<Network[]>([]);
   const [selectedChainId, setSelectedChainId] = useState<string>("");
   const [isLoadingScore, setIsLoadingScore] = useState<boolean>(false);
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
   const [claimResult, setClaimResult] = useState<ClaimResult | null>(null);
-  const [lastClaimTime, setLastClaimTime] = useState<Date | null>(null);
-
+  
   const { toast } = useToast();
+
+  useEffect(() => {
+    async function fetchNetworks() {
+        const res = await fetch('/api/networks');
+        const data = await res.json();
+        setNetworks(data.networks);
+    }
+    fetchNetworks();
+  }, []);
 
   const connectWallet = useCallback(async () => {
     if (typeof window.ethereum === "undefined") {
@@ -93,7 +98,6 @@ export default function Home() {
     setPassportScore(null);
     setSelectedChainId("");
     setClaimResult(null);
-    setLastClaimTime(null);
     setProvider(null);
   };
 
@@ -147,12 +151,13 @@ export default function Home() {
     try {
       const result = await claimTokens(address, parseInt(selectedChainId, 10));
       if (result.ok) {
+        const selectedNetwork = networks.find(n => n.chainId === parseInt(selectedChainId));
         setClaimResult({
           success: true,
           txHash: result.txHash,
-          amount: "0.01 ETH"
+          amount: `${selectedNetwork?.faucetAmount} ETH`
         });
-        setLastClaimTime(new Date());
+
       } else {
         throw new Error(result.message);
       }
@@ -163,14 +168,9 @@ export default function Home() {
     }
   };
 
-  const timeUntilNextClaim = lastClaimTime
-    ? 24 * 60 * 60 * 1000 -
-      (Date.now() - lastClaimTime.getTime())
-    : 0;
-  const isOnCooldown = timeUntilNextClaim > 0;
   const canClaim = isEligible && selectedChainId && !isClaiming;
   const isConnected = !!address;
-  const selectedNetwork = chains.find(c => c.id === parseInt(selectedChainId));
+  const selectedNetwork = networks.find(c => c.chainId === parseInt(selectedChainId));
 
   return (
     <main className="min-h-screen bg-background p-4 flex items-center justify-center">
@@ -257,18 +257,18 @@ export default function Home() {
                     <Send className="h-5 w-5 text-primary" />
                     <span>Claim Your Tokens</span>
                 </CardTitle>
-              <CardDescription>Receive 0.01 Testnet ETH on the network of your choice.</CardDescription>
+              <CardDescription>Receive Testnet ETH on the network of your choice.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Select Network</label>
-                <Select value={selectedChainId} onValueChange={setSelectedChainId}>
+                <Select value={selectedChainId} onValueChange={(value) => {setClaimResult(null); setSelectedChainId(value);}}>
                   <SelectTrigger>
                     <SelectValue placeholder="Choose a network..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {chains.map((chain) => (
-                      <SelectItem key={chain.id} value={String(chain.id)}>
+                    {networks.map((chain) => (
+                      <SelectItem key={chain.id} value={String(chain.chainId)}>
                         <div className="flex items-center space-x-2">
                           <span>{chain.name}</span>
                         </div>
@@ -278,24 +278,14 @@ export default function Home() {
                 </Select>
               </div>
 
-              {isOnCooldown && selectedChainId && (
-                <Alert>
-                  <AlertDescription className="text-center">
-                    You can claim again in{" "}
-                    {Math.ceil(timeUntilNextClaim / (1000 * 60 * 60))}{" "}
-                    hours.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <Button onClick={handleClaim} disabled={!canClaim || isOnCooldown} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold py-3 text-base">
+              <Button onClick={handleClaim} disabled={!canClaim} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold py-3 text-base">
                 {isClaiming ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Claiming...
                   </>
                 ) : (
-                  "Claim 0.01 ETH"
+                  `Claim ${selectedNetwork?.faucetAmount || ''} ETH`
                 )}
               </Button>
             </CardContent>
@@ -315,7 +305,7 @@ export default function Home() {
                     {claimResult.success ? "Claim Successful!" : "Claim Failed"}
                 </span>
               </CardTitle>
-            </CardHeader>
+            </Header>
             <CardContent className="space-y-4 text-sm">
               {claimResult.success ? (
                 <>

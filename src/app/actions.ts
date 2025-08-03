@@ -1,8 +1,14 @@
+
 "use server";
 
 import { ethers } from "ethers";
 import { z } from "zod";
-import { chains } from "@/lib/chains";
+import { getNetworkByChainId } from "@/lib/networks";
+import { db } from "@/lib/db";
+import { faucetClaims, networks } from "@/lib/schema";
+import { and, eq, gte } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+
 
 export async function claimTokens(address: string, chainId: number) {
   const schema = z.object({
@@ -17,20 +23,34 @@ export async function claimTokens(address: string, chainId: number) {
     return { ok: false, message: validation.error.errors[0].message };
   }
 
+  const selectedChain = await getNetworkByChainId(chainId);
+  if (!selectedChain) {
+    return { ok: false, message: "Unsupported chain ID." };
+  }
+
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const recentClaim = await db.query.faucetClaims.findFirst({
+    where: and(
+        eq(faucetClaims.walletAddress, address),
+        eq(faucetClaims.networkId, selectedChain.id),
+        gte(faucetClaims.claimedAt, twentyFourHoursAgo)
+    )
+  });
+
+  if (recentClaim) {
+      return { ok: false, message: "You have already claimed tokens on this network in the last 24 hours." };
+  }
+
+
   const mnemonic = process.env.FAUCET_MNEMONIC;
   if (!mnemonic) {
     console.error("FAUCET_MNEMONIC not set in .env file");
     return { ok: false, message: "Server configuration error." };
   }
-
-  const selectedChain = chains.find((c) => c.id === chainId);
-  if (!selectedChain) {
-    return { ok: false, message: "Unsupported chain ID." };
-  }
-
-  const rpcUrl = process.env[selectedChain.rpcEnvVar];
+  
+  const rpcUrl = selectedChain.rpcUrl;
   if (!rpcUrl) {
-    console.error(`${selectedChain.rpcEnvVar} not set for chain ID ${chainId}`);
+    console.error(`RPC URL not set for chain ID ${chainId}`);
     return { ok: false, message: "Server configuration error for selected chain." };
   }
 
@@ -39,7 +59,7 @@ export async function claimTokens(address: string, chainId: number) {
     const wallet = ethers.Wallet.fromPhrase(mnemonic).connect(provider);
 
     const balance = await provider.getBalance(wallet.address);
-    const amountToSend = ethers.parseEther("0.01");
+    const amountToSend = ethers.parseEther(selectedChain.faucetAmount);
 
     if (balance < amountToSend) {
       console.error(`Faucet wallet has insufficient funds on chain ${chainId}.`);
@@ -56,6 +76,16 @@ export async function claimTokens(address: string, chainId: number) {
     if (!receipt || receipt.status !== 1) {
         return { ok: false, message: "Transaction failed to confirm."}
     }
+
+    await db.insert(faucetClaims).values({
+        walletAddress: address,
+        networkId: selectedChain.id,
+        amount: selectedChain.faucetAmount,
+        txHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed.toString(),
+    });
+
 
     return { ok: true, txHash: receipt.hash, message: "Transaction successful!" };
   } catch (error: any) {
