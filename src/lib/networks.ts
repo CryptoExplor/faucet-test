@@ -1,13 +1,10 @@
 
-import { db } from "./db";
-import { networks, faucetClaims, type Network, type InsertNetwork } from "./schema";
-import { eq, sql, desc, count } from "drizzle-orm";
-import { z } from "zod";
-
+import { type Network, type InsertNetwork } from "./schema";
 
 // Comprehensive Superchain Network configurations - ordered display
-export const SUPPORTED_NETWORKS: InsertNetwork[] = [
+export const SUPPORTED_NETWORKS: (InsertNetwork & {id: string})[] = [
   {
+    id: "base-sepolia",
     name: "Base Sepolia",
     chainId: 84532,
     rpcUrl: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
@@ -18,6 +15,7 @@ export const SUPPORTED_NETWORKS: InsertNetwork[] = [
     iconUrl: "/networks/base.svg",
   },
   {
+    id: "optimism-sepolia",
     name: "Optimism Sepolia",
     chainId: 11155420,
     rpcUrl: process.env.OPTIMISM_SEPOLIA_RPC_URL || "https://sepolia.optimism.io",
@@ -28,6 +26,7 @@ export const SUPPORTED_NETWORKS: InsertNetwork[] = [
     iconUrl: "/networks/optimism.svg",
   },
   {
+    id: "arbitrum-sepolia",
     name: "Arbitrum Sepolia",
     chainId: 421614,
     rpcUrl: process.env.ARBITRUM_SEPOLIA_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc",
@@ -38,6 +37,7 @@ export const SUPPORTED_NETWORKS: InsertNetwork[] = [
     iconUrl: "/networks/arbitrum.svg",
   },
   {
+    id: "ink-sepolia",
     name: "Ink Sepolia",
     chainId: 763373,
     rpcUrl: process.env.INK_SEPOLIA_RPC_URL || "https://rpc-gel-sepolia.inkonchain.com",
@@ -48,6 +48,7 @@ export const SUPPORTED_NETWORKS: InsertNetwork[] = [
     iconUrl: "/networks/ink.svg",
   },
   {
+    id: "mode-sepolia",
     name: "Mode Sepolia",
     chainId: 919,
     rpcUrl: process.env.MODE_SEPOLIA_RPC_URL || "https://sepolia.mode.network",
@@ -58,6 +59,7 @@ export const SUPPORTED_NETWORKS: InsertNetwork[] = [
     iconUrl: "/networks/mode.svg",
   },
   {
+    id: "zora-sepolia",
     name: "Zora Sepolia",
     chainId: 999999999,
     rpcUrl: process.env.ZORA_SEPOLIA_RPC_URL || "https://sepolia.rpc.zora.energy",
@@ -68,6 +70,7 @@ export const SUPPORTED_NETWORKS: InsertNetwork[] = [
     iconUrl: "/networks/zora.svg",
   },
   {
+    id: "unichain-sepolia",
     name: "Unichain Sepolia",
     chainId: 1301,
     rpcUrl: process.env.UNICHAIN_SEPOLIA_RPC_URL || "https://sepolia.unichain.org",
@@ -78,6 +81,7 @@ export const SUPPORTED_NETWORKS: InsertNetwork[] = [
     iconUrl: "/networks/unichain.svg",
   },
   {
+    id: "blast-sepolia",
     name: "Blast Sepolia",
     chainId: 168587773,
     rpcUrl: process.env.BLAST_SEPOLIA_RPC_URL || "https://sepolia.blast.io",
@@ -88,6 +92,7 @@ export const SUPPORTED_NETWORKS: InsertNetwork[] = [
     iconUrl: "/networks/blast.svg",
   },
   {
+    id: "frax-sepolia",
     name: "Frax Sepolia",
     chainId: 2522,
     rpcUrl: process.env.FRAX_SEPOLIA_RPC_URL || "https://rpc.testnet.frax.com",
@@ -98,6 +103,7 @@ export const SUPPORTED_NETWORKS: InsertNetwork[] = [
     iconUrl: "/networks/frax.svg",
   },
   {
+    id: "cyber-sepolia",
     name: "Cyber Sepolia",
     chainId: 111557560,
     rpcUrl: process.env.CYBER_SEPOLIA_RPC_URL || "https://cyber-testnet.alt.technology",
@@ -109,87 +115,45 @@ export const SUPPORTED_NETWORKS: InsertNetwork[] = [
   },
 ];
 
-// Initialize networks in database
-export async function initializeNetworks() {
-  try {
-    const existingNetworks = await db.select({ chainId: networks.chainId }).from(networks);
-    const existingChainIds = new Set(existingNetworks.map(n => n.chainId));
+// Functions to interact with the static network data
+// Note: These no longer interact with a database
 
-    for (const networkConfig of SUPPORTED_NETWORKS) {
-      if (networkConfig.chainId && !existingChainIds.has(networkConfig.chainId)) {
-        await db.insert(networks).values(networkConfig);
-        console.log(`✓ Initialized network: ${networkConfig.name} (Chain ${networkConfig.chainId})`);
-      }
+export function getActiveNetworks(): Network[] {
+  // Cast to Network to satisfy the type from the no-longer-used schema
+  return SUPPORTED_NETWORKS.filter(n => n.isActive) as Network[];
+}
+
+export function getAllNetworks(): Network[] {
+  return SUPPORTED_NETWORKS as Network[];
+}
+
+export function getNetworkByChainId(chainId: number): Network | null {
+  return (SUPPORTED_NETWORKS.find(n => n.chainId === chainId) || null) as Network | null;
+}
+
+export function getNetworkById(id: string): Network | null {
+  return (SUPPORTED_NETWORKS.find(n => n.id === id) || null) as Network | null;
+}
+
+// Admin functions are no longer relevant as data is static
+// You would manage network status by changing `isActive` in the SUPPORTED_NETWORKS array
+export async function updateNetwork(networkId: string, updates: Partial<Network>): Promise<Network | null> {
+    console.warn("Network management is now static. Update the `SUPPORTED_NETWORKS` array in `src/lib/networks.ts`");
+    const network = getNetworkById(networkId);
+    if (network) {
+        // This is a temporary, in-memory update and will not persist.
+        Object.assign(network, updates);
+        return network;
     }
-  } catch (error) {
-    console.error("Failed to initialize networks:", error);
-  }
+    return null;
 }
-
-export async function getActiveNetworks(): Promise<Network[]> {
-  return await db
-    .select()
-    .from(networks)
-    .orderBy(desc(networks.name))
-    .where(eq(networks.isActive, true));
-}
-
-export async function getAllNetworks(): Promise<Network[]> {
-  return await db.select().from(networks).orderBy(desc(networks.name));
-}
-
-export async function getNetworkByChainId(chainId: number): Promise<Network | null> {
-  const result = await db
-    .select()
-    .from(networks)
-    .where(eq(networks.chainId, chainId))
-    .limit(1);
-  
-  return result[0] || null;
-}
-
-export async function getNetworkById(id: string): Promise<Network | null> {
-  const result = await db
-    .select()
-    .from(networks)
-    .where(eq(networks.id, id))
-    .limit(1);
-  
-  return result[0] || null;
-}
-
-const updateNetworkSchema = z.object({
-  faucetAmount: z.string().optional(),
-  isActive: z.boolean().optional(),
-});
-
-export async function updateNetwork(networkId: string, updates: z.infer<typeof updateNetworkSchema>): Promise<Network | null> {
-  const result = await db
-    .update(networks)
-    .set(updates)
-    .where(eq(networks.id, networkId))
-    .returning();
-
-  return result[0] || null;
-}
-
 
 export async function getAdminStats() {
-    const totalClaimsResult = await db.select({
-        count: count()
-    }).from(faucetClaims);
-    
-    const uniqueClaimersResult = await db.select({
-       count: count(sql`distinct "wallet_address"`)
-    }).from(faucetClaims);
-
-    const totalAmountClaimedResult = await db.select({
-      total: sql<string>`sum(amount::decimal)`
-    }).from(faucetClaims);
-
+    // Stats are no longer tracked as claims are not stored in a database.
+    console.warn("Claim stats are not available without a persistent database.");
     return {
-        totalClaims: totalClaimsResult[0].count,
-        uniqueClaimers: uniqueClaimersResult[0].count,
-        totalAmountClaimed: totalAmountClaimedResult[0].total || "0",
+        totalClaims: 0,
+        uniqueClaimers: 0,
+        totalAmountClaimed: "0",
     }
 }

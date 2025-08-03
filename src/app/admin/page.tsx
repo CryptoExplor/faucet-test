@@ -1,80 +1,31 @@
 
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
 import type { Network } from "@/lib/schema";
-import { Settings, Shield, Activity, TrendingUp, Loader2 } from "lucide-react";
+import { Settings, Shield, Activity, TrendingUp, Loader2, AlertCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 
 export default function AdminDashboard() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [editingNetwork, setEditingNetwork] = useState<string | null>(null);
-  const [formData, setFormData] = useState<{ faucetAmount: string; isActive: boolean }>({
-    faucetAmount: "",
-    isActive: true,
-  });
 
   const { data: networksData, isLoading: isLoadingNetworks } = useQuery<{networks: Network[]}>({
     queryKey: ["/api/networks", {all: 'true'}],
+    // Refetch data to see any manual changes in the code
+    staleTime: 1000 * 60 
   });
   const networks = networksData?.networks;
 
   const { data: stats, isLoading: isLoadingStats } = useQuery<{ totalClaims: number; uniqueClaimers: string; totalAmountClaimed: string }>({
     queryKey: ["/api/admin/stats"],
+    staleTime: 1000 * 60
   });
 
-  const updateNetworkMutation = useMutation({
-    mutationFn: async ({ networkId, updates }: { networkId: string; updates: Partial<Network> }) => {
-      const response = await apiRequest("PATCH", `/api/admin/networks/${networkId}`, updates);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/networks"] });
-      setEditingNetwork(null);
-      toast({
-        title: "Success",
-        description: "Network updated successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleEditNetwork = (network: Network) => {
-    setEditingNetwork(network.id);
-    setFormData({
-      faucetAmount: network.faucetAmount,
-      isActive: network.isActive,
-    });
-  };
-
-  const handleSaveNetwork = (networkId: string) => {
-    updateNetworkMutation.mutate({
-      networkId,
-      updates: formData,
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingNetwork(null);
-    setFormData({ faucetAmount: "", isActive: true });
-  };
-  
   const isLoading = isLoadingNetworks || isLoadingStats;
 
   if (isLoading) {
@@ -95,6 +46,13 @@ export default function AdminDashboard() {
           </div>
           <p className="text-lg text-muted-foreground">Manage Superchain Faucet</p>
         </div>
+
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>
+            The application is now using Upstash Redis for rate-limiting. Network configuration is managed statically in the code at <strong>src/lib/networks.ts</strong>. Editing networks via this dashboard is disabled. Claim statistics are no longer tracked.
+          </AlertTitle>
+        </Alert>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
@@ -157,7 +115,7 @@ export default function AdminDashboard() {
               <span>Network Management</span>
             </CardTitle>
             <CardDescription>
-              Control network availability and faucet amounts for each Sepolia testnet
+              Control network availability and faucet amounts for each Sepolia testnet.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -184,57 +142,9 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="flex items-center space-x-4">
-                    {editingNetwork === network.id ? (
-                      <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center space-x-2">
-                          <Label htmlFor={`amount-${network.id}`} className="text-sm">Amount:</Label>
-                          <Input
-                            id={`amount-${network.id}`}
-                            value={formData.faucetAmount}
-                            onChange={(e) => setFormData(prev => ({ ...prev, faucetAmount: e.target.value }))}
-                            className="w-24 h-8"
-                            placeholder="0.001"
-                          />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Label htmlFor={`active-${network.id}`} className="text-sm">Active:</Label>
-                          <Switch
-                            id={`active-${network.id}`}
-                            checked={formData.isActive}
-                            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
-                          />
-                        </div>
-                        <Button 
-                          onClick={() => handleSaveNetwork(network.id)}
-                          disabled={updateNetworkMutation.isPending}
-                          size="sm"
-                          className="bg-primary hover:bg-primary/90"
-                        >
-                          {updateNetworkMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                          Save
-                        </Button>
-                        <Button 
-                          onClick={handleCancelEdit}
-                          variant="outline"
-                          size="sm"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-4">
-                        <span className="text-sm font-medium text-muted-foreground">
-                         {network.faucetAmount} {network.nativeCurrency}
-                        </span>
-                        <Button 
-                          onClick={() => handleEditNetwork(network)}
-                          variant="outline"
-                          size="sm"
-                        >
-                          Edit
-                        </Button>
-                      </div>
-                    )}
+                    <span className="text-sm font-medium text-muted-foreground">
+                     {network.faucetAmount} {network.nativeCurrency}
+                    </span>
                   </div>
                 </div>
                  {index < networks.length - 1 && <Separator className="my-2" />}

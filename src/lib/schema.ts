@@ -1,17 +1,18 @@
-import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { relations } from "drizzle-orm";
+
+// These schemas are now used for type definitions and Zod validation,
+// but are not directly tied to a database schema.
 
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id"),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
 });
 
 export const networks = pgTable("networks", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id"),
   name: text("name").notNull().unique(),
   chainId: integer("chain_id").notNull().unique(),
   rpcUrl: text("rpc_url").notNull(),
@@ -24,7 +25,7 @@ export const networks = pgTable("networks", {
 });
 
 export const faucetClaims = pgTable("faucet_claims", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id"),
   walletAddress: text("wallet_address").notNull(),
   networkId: varchar("network_id").notNull(),
   amount: text("amount").notNull(),
@@ -36,17 +37,6 @@ export const faucetClaims = pgTable("faucet_claims", {
   isSuccessful: boolean("is_successful").default(true).notNull(),
 });
 
-// Relations
-export const networksRelations = relations(networks, ({ many }) => ({
-  claims: many(faucetClaims),
-}));
-
-export const faucetClaimsRelations = relations(faucetClaims, ({ one }) => ({
-  network: one(networks, {
-    fields: [faucetClaims.networkId],
-    references: [networks.id],
-  }),
-}));
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,

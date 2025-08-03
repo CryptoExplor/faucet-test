@@ -4,12 +4,27 @@
 import { ethers } from "ethers";
 import { z } from "zod";
 import { getNetworkByChainId, getNetworkById } from "@/lib/networks";
-import { db } from "@/lib/db";
-import { faucetClaims } from "@/lib/schema";
-import { and, eq, gte } from "drizzle-orm";
+import { Redis } from "@upstash/redis";
+
+// Initialize Redis client for rate limiting
+const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN 
+  ? new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    })
+  : null;
+
+// Rate limiting constants
+const RATE_LIMIT_HOURS = 24; // 24 hours
+const RATE_LIMIT_SECONDS = RATE_LIMIT_HOURS * 60 * 60;
 
 
 export async function claimTokens(address: string, chainId: number, passportScore: number) {
+  if (!redis) {
+    console.error("Upstash Redis not configured. Rate limiting is disabled.");
+    return { ok: false, message: "Server configuration error: Rate limiting service is unavailable." };
+  }
+  
   const schema = z.object({
     address: z.string().refine((addr) => ethers.isAddress(addr), {
       message: "Invalid Ethereum address provided.",
@@ -23,7 +38,7 @@ export async function claimTokens(address: string, chainId: number, passportScor
     return { ok: false, message: validation.error.errors[0].message };
   }
 
-  const selectedChain = await getNetworkByChainId(chainId);
+  const selectedChain = getNetworkByChainId(chainId);
   if (!selectedChain) {
     return { ok: false, message: "Unsupported chain ID." };
   }
@@ -37,18 +52,14 @@ export async function claimTokens(address: string, chainId: number, passportScor
     return { ok: false, message: "Insufficient Gitcoin Passport score. Minimum required: 10" };
   }
 
-  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const recentClaim = await db.query.faucetClaims.findFirst({
-    where: and(
-        eq(faucetClaims.walletAddress, address.toLowerCase()),
-        eq(faucetClaims.networkId, selectedChain.id),
-        gte(faucetClaims.claimedAt, twentyFourHoursAgo)
-    )
-  });
+  const rateLimitKey = `faucet:${address.toLowerCase()}:${selectedChain.id}`;
+  const existingClaim = await redis.get(rateLimitKey);
 
-  if (recentClaim) {
-      const nextClaimTime = new Date(recentClaim.claimedAt.getTime() + 24 * 60 * 60 * 1000);
-      return { ok: false, message: `You have already claimed tokens on this network in the last 24 hours. Please try again after ${nextClaimTime.toLocaleString()}.` };
+  if (existingClaim) {
+    const remainingTime = await redis.ttl(rateLimitKey);
+    const hours = Math.floor(remainingTime / 3600);
+    const minutes = Math.floor((remainingTime % 3600) / 60);
+    return { ok: false, message: `You have already claimed on this network. Please try again in ${hours}h ${minutes}m.` };
   }
 
 
@@ -86,16 +97,9 @@ export async function claimTokens(address: string, chainId: number, passportScor
     if (!receipt || receipt.status !== 1) {
         return { ok: false, message: "Transaction failed to confirm."}
     }
-
-    await db.insert(faucetClaims).values({
-        walletAddress: address.toLowerCase(),
-        networkId: selectedChain.id,
-        amount: selectedChain.faucetAmount,
-        txHash: receipt.hash,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed.toString(),
-        passportScore: String(passportScore),
-    });
+    
+    // Set rate limit flag in Redis
+    await redis.set(rateLimitKey, "claimed", { ex: RATE_LIMIT_SECONDS });
 
 
     return { ok: true, txHash: receipt.hash, message: "Transaction successful!", network: selectedChain };
@@ -114,25 +118,15 @@ export async function claimTokens(address: string, chainId: number, passportScor
 }
 
 export async function checkRateLimit(address: string, networkId: string) {
-    const network = await getNetworkById(networkId);
-    if (!network) {
+    if (!redis) {
+        console.error("Upstash Redis not configured. Cannot check rate limit.");
         return { isRateLimited: false, remainingTime: null };
     }
+    const rateLimitKey = `faucet:${address.toLowerCase()}:${networkId}`;
+    const remainingTime = await redis.ttl(rateLimitKey);
 
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentClaim = await db.query.faucetClaims.findFirst({
-        where: and(
-            eq(faucetClaims.walletAddress, address.toLowerCase()),
-            eq(faucetClaims.networkId, networkId),
-            gte(faucetClaims.claimedAt, twentyFourHoursAgo)
-        ),
-        orderBy: (claims, { desc }) => [desc(claims.claimedAt)],
-    });
-
-    if (recentClaim) {
-        const nextClaimTime = new Date(recentClaim.claimedAt.getTime() + 24 * 60 * 60 * 1000);
-        const remainingTime = nextClaimTime.getTime() - Date.now();
-        return { isRateLimited: true, remainingTime: remainingTime > 0 ? remainingTime : 0 };
+    if (remainingTime > 0) {
+        return { isRateLimited: true, remainingTime: remainingTime * 1000 }; // convert to ms
     }
 
     return { isRateLimited: false, remainingTime: null };

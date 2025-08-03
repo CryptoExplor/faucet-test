@@ -1,39 +1,12 @@
 
-import { updateNetwork } from "@/lib/networks";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 
-const updateSchema = z.object({
-  faucetAmount: z.string().optional(),
-  isActive: z.boolean().optional(),
-});
-
+// This endpoint is no longer functional as network data is managed statically.
+// It is kept to prevent 404 errors from the admin page but will not perform any action.
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { networkId: string } }
 ) {
-  const { networkId } = params;
-  if (!networkId) {
-    return NextResponse.json({ message: "Network ID is required" }, { status: 400 });
-  }
-  
-  try {
-    const body = await request.json();
-    const validatedData = updateSchema.safeParse(body);
-    
-    if (!validatedData.success) {
-      return NextResponse.json({ message: "Invalid update data", errors: validatedData.error.errors }, { status: 400 });
-    }
-
-    const updatedNetwork = await updateNetwork(networkId, validatedData.data);
-
-    if (!updatedNetwork) {
-       return NextResponse.json({ message: "Network not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(updatedNetwork);
-  } catch (error: any) {
-    console.error(`Failed to update network ${networkId}:`, error);
-    return NextResponse.json({ message: error.message || "Failed to update network" }, { status: 500 });
-  }
+  console.warn("Attempted to update network via API. Network data is now managed statically in src/lib/networks.ts");
+  return NextResponse.json({ message: "Network management is disabled. Please update the configuration in the source code." }, { status: 400 });
 }
