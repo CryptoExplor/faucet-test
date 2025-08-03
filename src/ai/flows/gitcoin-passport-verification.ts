@@ -37,6 +37,7 @@ const getGitcoinPassportScoreTool = ai.defineTool({
     
     if (!apiKey || !scorerId) {
         console.error("Gitcoin API credentials not configured. Set GITCOIN_API_KEY and GITCOIN_SCORER_ID.");
+        // Return a score of 0 if the service is not configured.
         return { score: 0 };
     }
     
@@ -47,19 +48,18 @@ const getGitcoinPassportScoreTool = ai.defineTool({
 
         if (response.ok) {
             const data = await response.json();
-            console.log(`Gitcoin score for ${address}:`, data.score);
+            // Ensure score is a number, default to 0 if parsing fails
             return { score: parseFloat(data.score || "0") };
         } else {
-            console.warn(`Gitcoin API failed for ${address} with status: ${response.status}`);
              const errorBody = await response.text();
-            console.error("Gitcoin API Error:", errorBody);
+            console.error(`Gitcoin API Error for ${address}: ${errorBody}`);
         }
 
     } catch (error) {
         console.error(`Error fetching Gitcoin score for ${address}:`, error);
     }
     
-    console.log(`Could not retrieve passport score for ${address}. Defaulting to 0.`);
+    // Default to a score of 0 in case of any errors
     return { score: 0 };
 });
 
