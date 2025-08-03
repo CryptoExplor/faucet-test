@@ -131,25 +131,3 @@ export async function checkRateLimit(address: string, networkId: string) {
 
     return { isRateLimited: false, remainingTime: null };
 }
-
-export async function getPassportScore(address: string) {
-    // This function will be replaced by the Genkit flow, 
-    // but we have a placeholder for the frame's direct API call.
-    try {
-        const response = await fetch(`https://api.scorer.gitcoin.co/registry/score/${process.env.GITCOIN_SCORER_ID}/${address}`, {
-             headers: {
-                'X-API-KEY': process.env.GITCOIN_API_KEY as string,
-                'Content-Type': 'application/json'
-            }
-        });
-        if (!response.ok) {
-            return { score: 0, isEligible: false };
-        }
-        const data = await response.json();
-        const score = parseFloat(data.score || "0");
-        return { score, isEligible: score >= 10 };
-    } catch (error) {
-        console.error("Error fetching Gitcoin score for frame:", error);
-        return { score: 0, isEligible: false };
-    }
-}
