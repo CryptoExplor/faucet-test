@@ -1,73 +1,72 @@
-# Farcaster Mini App Setup Guide
+# Farcaster Superchain Faucet
+
+This is a multi-chain faucet designed to run as a Farcaster Mini App. It allows users to claim testnet ETH on various Superchain networks after verifying their humanity with a Gitcoin Passport score.
 
 ## Current Status
-✅ Mini App code implemented and working  
-✅ Manifest endpoint at `/.well-known/farcaster.json`  
-✅ Frame page with embedded meta tags  
-✅ Social sharing functionality  
-⚠️ Account association tokens needed for production  
+- ✅ **Mini App**: Core application logic is implemented for both a standard web UI and a Farcaster Mini App.
+- ✅ **Farcaster Frame**: A basic frame is configured to launch the Mini App.
+- ✅ **Rate Limiting**: Uses Upstash Redis for server-side rate-limiting.
+- ✅ **Network Config**: Network configurations are managed statically, making it easy to add or disable faucets.
 
-## To Publish as Official Farcaster Mini App
+---
 
-### 1. Enable Developer Mode
-- Go to https://farcaster.xyz/~/settings/developer-tools
-- Enable developer mode on mobile or desktop
+## How to Test This Application
 
-### 2. Generate Account Association
-You'll need to generate these tokens for the manifest:
-```json
-{
-  "accountAssociation": {
-    "token": "your_token_here",
-    "signature": "your_signature_here"
-  }
-}
+Testing a Farcaster Mini App involves checking its functionality both as a standalone web app and within a Farcaster client.
+
+### 1. Local Development (Standard Browser)
+
+This method is for testing the core UI and claim functionality without Farcaster-specific features.
+
+**A. Run the Development Server:**
+```bash
+npm install
+npm run dev
 ```
+The application will be available at `http://localhost:9002`.
 
-### 3. Update Manifest URLs
-The manifest automatically uses your deployment domain, but verify:
-- `iconUrl`: Should point to a 64x64 PNG icon
-- `splashImageUrl`: Should point to a 400x400 PNG splash screen
-- `homeUrl`: Points to `/frame` endpoint
+**B. Test the Web UI:**
+- **Connect Wallet**: Use a browser wallet like MetaMask to connect to the app.
+- **Check Eligibility**: The app will automatically attempt to fetch a Gitcoin Passport score for the connected wallet.
+- **Select Network & Claim**: Choose a network from the dropdown and click the claim button to test the faucet logic. You will need to fund the faucet's wallet address in your `.env` file for claims to succeed.
 
-### 4. Test Your Mini App
-- Use Farcaster's developer tools to preview
-- Test the manifest at: `https://your-domain/.well-known/farcaster.json`
-- Verify frame embeds work in Farcaster clients
+### 2. Farcaster Environment Testing
 
-## Current Endpoints
+This method is for testing the complete Mini App experience within a Farcaster client like Warpcast.
 
-### Manifest
-- **URL**: `/.well-known/farcaster.json`
-- **Purpose**: Mini App discovery and configuration
+**A. Expose Your Local Server:**
+Your local server needs a public URL so that Farcaster clients can access it. `ngrok` is a great tool for this.
 
-### Frame Page
-- **URL**: `/frame`
-- **Purpose**: Main Mini App interface with embedded meta tags
+1.  Install `ngrok` (see [ngrok.com](https://ngrok.com/)).
+2.  Run the following command to create a public tunnel to your local app:
+    ```bash
+    ngrok http 9002
+    ```
+3.  `ngrok` will provide you with a public URL (e.g., `https://random-string.ngrok-free.app`). **Copy this URL.**
 
-### Assets
-- **Icon**: `/icon.png` (currently placeholder)
-- **Splash**: `/splash.png` (currently placeholder)
-- **Frame Image**: `/frame-image.png` (for social embeds)
+**B. Use Farcaster Developer Tools:**
+1.  In your Farcaster client (e.g., Warpcast), go to **Settings > Advanced > Developer Tools** and enable them.
+2.  In the Developer Tools menu, you can now open a Mini App by pasting your public `ngrok` URL.
+3.  This will launch your application inside the client's webview, allowing you to test the Farcaster SDK integration (e.g., fetching user profile, connecting the Farcaster wallet).
 
-## Development vs Production
+**C. Test the Frame in a Cast:**
+- Create a new cast and paste your public `ngrok` URL into it.
+- The Farcaster client should render a Frame with a button. Clicking this button will launch your Mini App.
 
-### Development (Current)
-- Uses simulated Farcaster SDK
-- Placeholder images
-- No account association tokens
+### 3. Manifest and Environment Variables
 
-### Production (To Deploy)
-- Real `@farcaster/miniapp-sdk`
-- Custom icon/splash images
-- Valid account association tokens
-- Domain verification
+- **Manifest**: Your manifest file is served from `src/app/.well-known/farcaster.json/route.ts`. To make it official, you need to generate `accountAssociation` tokens and add them.
+- **Environment**: Before testing claims, ensure you have a `.env.local` file with the required variables:
+  - `FAUCET_MNEMONIC`: The mnemonic for the wallet that will fund the claims.
+  - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`: For rate-limiting.
+  - `GITCOIN_API_KEY` / `GITCOIN_SCORER_ID`: For checking passport scores.
+  - RPC URLs for the networks you want to support (e.g., `BASE_SEPOLIA_RPC_URL`).
 
-## Next Steps
-1. Deploy to get stable URL
-2. Create custom icon and splash images
-3. Generate account association tokens
-4. Test in Farcaster developer tools
-5. Submit for review (if needed)
+---
 
-Built by @CryptoExplor • 2025
+## Publishing Your Mini App
+
+1.  **Deploy**: Deploy your application to a public hosting provider like Vercel or Firebase App Hosting to get a permanent URL.
+2.  **Generate Account Association**: Use Farcaster developer tools to generate an association token for your deployed domain.
+3.  **Update Manifest**: Add the `accountAssociation` token and signature to your manifest logic in `src/app/.well-known/farcaster.json/route.ts`.
+4.  **Test Live**: Test your deployed URL in a Farcaster client to ensure everything works as expected.
