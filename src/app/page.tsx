@@ -27,13 +27,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { getGitcoinPassportScore } from "@/ai/flows/gitcoin-passport-verification";
 import { claimTokens } from "./actions";
@@ -43,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ethers, type BrowserProvider } from "ethers";
 import { useQuery } from "@tanstack/react-query";
+import { NetworkSelector } from "@/components/network-selector";
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -55,46 +49,18 @@ interface ClaimResult {
     error?: string;
 }
 
-function formatTimeRemaining(ms: number): string {
-  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-  
-  if (days > 0) {
-    return `${days}d ${hours}h`;
-  } else if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else {
-    return `${minutes}m`;
-  }
-}
-
 export default function Home() {
   const [provider, setProvider] = useState<BrowserProvider | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [passportScore, setPassportScore] = useState<number | null>(null);
   const [isEligible, setIsEligible] = useState<boolean>(false);
   
-  const [selectedChainId, setSelectedChainId] = useState<string>("");
+  const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
   const [isLoadingScore, setIsLoadingScore] = useState<boolean>(false);
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
   const [claimResult, setClaimResult] = useState<ClaimResult | null>(null);
-  const [rateLimit, setRateLimit] = useState<{isRateLimited: boolean, remainingTime: number | null}>({isRateLimited: false, remainingTime: null});
 
   const { toast } = useToast();
-
-  const { data: networkData } = useQuery<{networks: Network[]}>({
-    queryKey: ['/api/networks']
-  });
-  const networks = networkData?.networks || [];
-
-  useEffect(() => {
-    if (networks.length > 0 && !selectedChainId) {
-      const defaultNetwork = networks[0];
-      setSelectedChainId(String(defaultNetwork.chainId));
-    }
-  }, [networks, selectedChainId]);
-
 
   const connectWallet = useCallback(async () => {
     if (typeof window.ethereum === "undefined") {
@@ -124,9 +90,7 @@ export default function Home() {
   const handleDisconnectWallet = () => {
     setAddress(null);
     setPassportScore(null);
-    if(networks.length > 0) {
-      setSelectedChainId(String(networks[0].chainId));
-    }
+    setSelectedNetwork(null);
     setClaimResult(null);
     setProvider(null);
   };
@@ -175,12 +139,12 @@ export default function Home() {
   }, []);
 
   const handleClaim = async () => {
-    if (!address || !selectedChainId || passportScore === null) return;
+    if (!address || !selectedNetwork?.chainId || passportScore === null) return;
     setIsClaiming(true);
     setClaimResult(null);
 
     try {
-      const result = await claimTokens(address, parseInt(selectedChainId, 10), passportScore);
+      const result = await claimTokens(address, selectedNetwork.chainId, passportScore);
       if (result.ok && result.txHash && result.network) {
         setClaimResult({
           success: true,
@@ -194,7 +158,7 @@ export default function Home() {
             description: `Sent ${result.network.faucetAmount} ${result.network.nativeCurrency} to your wallet.`,
         });
         // Refetch score to update rate limiting display implicitly
-        fetchScore(address);
+        if (address) fetchScore(address);
       } else {
         throw new Error(result.message);
       }
@@ -213,13 +177,11 @@ export default function Home() {
     });
   };
 
-  const canClaim = isEligible && selectedChainId && !isClaiming;
+  const canClaim = isEligible && selectedNetwork && !isClaiming;
   const isConnected = !!address;
-  const selectedNetwork = networks.find(c => c.chainId === parseInt(selectedChainId));
 
   return (
     <div className="min-h-screen bg-secondary">
-      {/* Header */}
       <header className="bg-background shadow-sm border-b border-border">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
@@ -242,222 +204,170 @@ export default function Home() {
         </div>
       </header>
       
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-
-        {/* Wallet Connection */}
-        <Card className="shadow-lg">
-           <CardHeader>
-             <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-primary" />
-                <span>Wallet Connection</span>
-              </div>
-               {isConnected && (
-                <Badge variant="outline" className="border-green-500 bg-green-50 text-green-700">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></div>
-                  Connected
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!isConnected ? (
-              <div>
-                <Button onClick={connectWallet} disabled={isClaiming} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                  Connect MetaMask
-                </Button>
-                <p className="text-sm text-muted-foreground mt-2 text-center">
-                  Connect your wallet to check eligibility and claim test ETH
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="bg-secondary rounded-lg p-3">
-                   <div className="flex items-center justify-between mb-2">
-                     <span className="text-sm font-medium text-muted-foreground">Wallet Address</span>
-                     <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(address)}
-                        className="text-primary hover:text-primary/90 h-auto p-1"
-                      >
-                       <Copy className="mr-1 h-3 w-3" />
-                        Copy
-                     </Button>
-                   </div>
-                   <p className="font-mono text-sm text-foreground break-all">{address}</p>
-                 </div>
-
-                <Button variant="outline" onClick={handleDisconnectWallet} className="w-full">
-                  Disconnect
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Gitcoin Passport */}
-        <Card className="shadow-lg">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <BadgeCheck className="h-5 w-5 text-primary" />
-                    <span>Gitcoin Passport</span>
-                </CardTitle>
-              <CardDescription>A minimum score of {ELIGIBILITY_THRESHOLD} is required for claiming tokens.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!isConnected ? (
-                <div className="text-center py-8">
-                  <BadgeCheck className="text-muted-foreground/50 text-3xl mx-auto mb-3" />
-                  <p className="text-muted-foreground">Connect your wallet to check your score</p>
-                </div>
-              ) : isLoadingScore ? (
-                <div className="flex items-center justify-center gap-2 p-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  <span className="text-muted-foreground">Verifying Passport...</span>
-                </div>
-              ) : passportScore !== null ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-lg">
-                    <span className="font-medium">Your Score:</span>
-                    <Badge variant={isEligible ? "default" : "destructive"} className="bg-accent text-accent-foreground text-xl px-4 py-2">
-                      {passportScore.toFixed(2)}
+      <main className="max-w-4xl mx-auto px-4 py-8 grid md:grid-cols-2 gap-8">
+        <div className="space-y-6">
+            {/* Wallet Connection */}
+            <Card className="shadow-lg">
+               <CardHeader>
+                 <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-primary" />
+                    <span>Wallet Connection</span>
+                  </div>
+                   {isConnected && (
+                    <Badge variant="outline" className="border-green-500 bg-green-50 text-green-700">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></div>
+                      Connected
                     </Badge>
-                  </div>
-                  {isEligible ? (
-                    <Alert className="border-green-500 bg-green-50 text-green-700">
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                      <AlertDescription>
-                        Congratulations! You are eligible to claim tokens.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                     <Alert variant="destructive">
-                       <XCircle className="h-4 w-4" />
-                       <AlertTitle>Not Eligible</AlertTitle>
-                       <AlertDescription>
-                         Your score is below the minimum threshold. Visit <a href="https://passport.gitcoin.co" target="_blank" rel="noopener noreferrer" className="underline font-semibold">Gitcoin Passport</a> to improve your score.
-                       </AlertDescription>
-                     </Alert>
                   )}
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-        {/* Faucet Claim */}
-        <Card className="shadow-lg">
-            <CardHeader>
-               <CardTitle className="flex items-center gap-2">
-                    <Send className="h-5 w-5 text-primary" />
-                    <span>Claim Your Tokens</span>
                 </CardTitle>
-              <CardDescription>Select a network and receive Testnet ETH instantly.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Select Network</label>
-                <Select value={selectedChainId} onValueChange={(value) => {setClaimResult(null); setSelectedChainId(value);}} disabled={!isConnected || isClaiming}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a network..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {networks.map((chain) => (
-                      <SelectItem key={chain.id} value={String(chain.chainId)}>
-                        <div className="flex items-center space-x-2">
-                          <img src={chain.iconUrl || ""} alt={chain.name} className="w-4 h-4"/>
-                          <span>{chain.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button onClick={handleClaim} disabled={!canClaim} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold py-3 text-base">
-                {isClaiming ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Claiming...
-                  </>
-                ) : (
-                  `Claim ${selectedNetwork?.faucetAmount || ''} ${selectedNetwork?.nativeCurrency}`
-                )}
-              </Button>
-            </CardContent>
-             {claimResult && (
-              <CardFooter>
-                 {claimResult.success ? (
-                    <Alert className="w-full border-green-500 bg-green-50 text-green-700">
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                       <AlertTitle className="text-green-800">Claim Successful!</AlertTitle>
-                      <AlertDescription>
-                       <div className="space-y-2">
-                          <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Amount:</span>
-                              <span className="font-mono">{claimResult.amount}</span>
-                          </div>
-                           <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Network:</span>
-                              <span className="font-medium">{claimResult.network}</span>
-                          </div>
-                          <Separator className="my-1 bg-green-200"/>
-                           <a href={`${claimResult.explorerUrl}/tx/${claimResult.txHash}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 pt-1 text-primary hover:underline">
-                              <span className="text-xs break-all">{claimResult.txHash}</span>
-                              <ExternalLink className="h-3 w-3 shrink-0" />
-                          </a>
-                        </div>
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <Alert variant="destructive" className="w-full">
-                       <XCircle className="h-4 w-4" />
-                       <AlertTitle>Claim Failed</AlertTitle>
-                       <AlertDescription>{claimResult.error}</AlertDescription>
-                    </Alert>
-                  )}
-              </CardFooter>
-            )}
-          </Card>
-
-        {/* Faucet Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Info className="text-primary" />
-              <span>How It Works</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-4 text-sm text-muted-foreground">
-                <li className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">1</div>
+              </CardHeader>
+              <CardContent>
+                {!isConnected ? (
                   <div>
-                    <span className="font-semibold text-foreground">Connect Wallet:</span> Click the "Connect MetaMask" button to link your wallet to the faucet.
+                    <Button onClick={connectWallet} disabled={isClaiming} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+                      Connect MetaMask
+                    </Button>
+                    <p className="text-sm text-muted-foreground mt-2 text-center">
+                      Connect your wallet to check eligibility and claim test ETH
+                    </p>
                   </div>
-                </li>
-                <li className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">2</div>
-                   <div>
-                    <span className="font-semibold text-foreground">Verify Passport:</span> We automatically check your Gitcoin Passport score. A score of {ELIGIBILITY_THRESHOLD} or higher is required.
+                ) : (
+                  <div className="space-y-3">
+                    <div className="bg-secondary rounded-lg p-3">
+                       <div className="flex items-center justify-between mb-2">
+                         <span className="text-sm font-medium text-muted-foreground">Wallet Address</span>
+                         <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => copyToClipboard(address)}
+                            className="text-primary hover:text-primary/90 h-auto p-1"
+                          >
+                           <Copy className="mr-1 h-3 w-3" />
+                            Copy
+                         </Button>
+                       </div>
+                       <p className="font-mono text-sm text-foreground break-all">{address}</p>
+                     </div>
+
+                    <Button variant="outline" onClick={handleDisconnectWallet} className="w-full">
+                      Disconnect
+                    </Button>
                   </div>
-                </li>
-                 <li className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">3</div>
-                   <div>
-                    <span className="font-semibold text-foreground">Select Network & Claim:</span> Choose a network from the dropdown, then click the claim button to receive your testnet tokens.
-                  </div>
-                </li>
-            </ol>
-            <Separator className="my-6"/>
-            <div className="text-xs text-muted-foreground text-center">
-              Rate-limited to one claim per network every 24 hours to ensure fair distribution for all developers.
-            </div>
-          </CardContent>
-        </Card>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Gitcoin Passport */}
+            <Card className="shadow-lg">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <BadgeCheck className="h-5 w-5 text-primary" />
+                        <span>Gitcoin Passport</span>
+                    </CardTitle>
+                  <CardDescription>A minimum score of {ELIGIBILITY_THRESHOLD} is required for claiming tokens.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {!isConnected ? (
+                    <div className="text-center py-8">
+                      <BadgeCheck className="text-muted-foreground/50 text-3xl mx-auto mb-3" />
+                      <p className="text-muted-foreground">Connect your wallet to check your score</p>
+                    </div>
+                  ) : isLoadingScore ? (
+                    <div className="flex items-center justify-center gap-2 p-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <span className="text-muted-foreground">Verifying Passport...</span>
+                    </div>
+                  ) : passportScore !== null ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between text-lg">
+                        <span className="font-medium">Your Score:</span>
+                        <Badge variant={isEligible ? "default" : "destructive"} className="bg-accent text-accent-foreground text-xl px-4 py-2">
+                          {passportScore.toFixed(2)}
+                        </Badge>
+                      </div>
+                      {isEligible ? (
+                        <Alert className="border-green-500 bg-green-50 text-green-700">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <AlertDescription>
+                            Congratulations! You are eligible to claim tokens.
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                         <Alert variant="destructive">
+                           <XCircle className="h-4 w-4" />
+                           <AlertTitle>Not Eligible</AlertTitle>
+                           <AlertDescription>
+                             Your score is below the minimum threshold. Visit <a href="https://passport.gitcoin.co" target="_blank" rel="noopener noreferrer" className="underline font-semibold">Gitcoin Passport</a> to improve your score.
+                           </AlertDescription>
+                         </Alert>
+                      )}
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+        </div>
+        <div className="space-y-6">
+            <NetworkSelector selectedNetwork={selectedNetwork} onNetworkSelect={setSelectedNetwork} />
+
+            {/* Faucet Claim */}
+            <Card className="shadow-lg">
+                <CardHeader>
+                   <CardTitle className="flex items-center gap-2">
+                        <Send className="h-5 w-5 text-primary" />
+                        <span>Claim Your Tokens</span>
+                    </CardTitle>
+                  <CardDescription>Select a network and receive Testnet ETH instantly.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={handleClaim} disabled={!canClaim} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold py-3 text-base">
+                    {isClaiming ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Claiming...
+                      </>
+                    ) : (
+                      `Claim ${selectedNetwork?.faucetAmount || ''} ${selectedNetwork?.nativeCurrency || ''}`
+                    )}
+                  </Button>
+                </CardContent>
+                 {claimResult && (
+                  <CardFooter>
+                     {claimResult.success ? (
+                        <Alert className="w-full border-green-500 bg-green-50 text-green-700">
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                           <AlertTitle className="text-green-800">Claim Successful!</AlertTitle>
+                          <AlertDescription>
+                           <div className="space-y-2">
+                              <div className="flex justify-between text-xs">
+                                  <span className="text-muted-foreground">Amount:</span>
+                                  <span className="font-mono">{claimResult.amount}</span>
+                              </div>
+                               <div className="flex justify-between text-xs">
+                                  <span className="text-muted-foreground">Network:</span>
+                                  <span className="font-medium">{claimResult.network}</span>
+                              </div>
+                              <Separator className="my-1 bg-green-200"/>
+                               <a href={`${claimResult.explorerUrl}/tx/${claimResult.txHash}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 pt-1 text-primary hover:underline">
+                                  <span className="text-xs break-all">{claimResult.txHash}</span>
+                                  <ExternalLink className="h-3 w-3 shrink-0" />
+                              </a>
+                            </div>
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <Alert variant="destructive" className="w-full">
+                           <XCircle className="h-4 w-4" />
+                           <AlertTitle>Claim Failed</AlertTitle>
+                           <AlertDescription>{claimResult.error}</AlertDescription>
+                        </Alert>
+                      )}
+                  </CardFooter>
+                )}
+              </Card>
+        </div>
       </main>
 
-      {/* Footer */}
       <footer className="bg-background border-t border-border mt-12">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
