@@ -1,8 +1,8 @@
 
-import { type Network, type InsertNetwork } from "./schema";
+import { type Network } from "./schema";
 
 // Comprehensive Superchain Network configurations - ordered display
-export const SUPPORTED_NETWORKS: (InsertNetwork & {id: string})[] = [
+export const SUPPORTED_NETWORKS: (Omit<Network, 'createdAt'>)[] = [
   {
     id: "base-sepolia",
     name: "Base Sepolia",
