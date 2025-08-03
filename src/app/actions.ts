@@ -25,6 +25,8 @@ export async function getPassportScore(address: string) {
 
     if (!apiKey || !scorerId) {
       console.error("Gitcoin API credentials not configured. Set GITCOIN_API_KEY and GITCOIN_SCORER_ID.");
+      // Return a score of 0 if not configured, but don't throw an error,
+      // let the frontend decide how to handle this state.
       return { score: 0, isEligible: false };
     }
 
@@ -33,13 +35,18 @@ export async function getPassportScore(address: string) {
            headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
       });
 
+      if (response.status === 404) {
+          console.log(`No Gitcoin Passport found for address: ${address}`);
+          return { score: 0, isEligible: false };
+      }
+
       if (response.ok) {
           const data = await response.json();
           const score = parseFloat(data.score || "0");
           return { score, isEligible: score >= ELIGIBILITY_THRESHOLD };
       } else {
            const errorBody = await response.text();
-          console.error(`Gitcoin API Error for ${address}: ${errorBody}`);
+          console.error(`Gitcoin API Error for ${address}: ${response.status} ${errorBody}`);
       }
 
     } catch (error) {
