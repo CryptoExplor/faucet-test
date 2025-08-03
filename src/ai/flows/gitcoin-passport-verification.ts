@@ -34,16 +34,15 @@ const getGitcoinPassportScoreTool = ai.defineTool({
     outputSchema: z.object({
         score: z.number().describe('The Gitcoin Passport score.')
     }),
-    async (input) => {
-        const response = await fetch(`https://scorer.gitcoin.co/passport/score/${input.address}`);
-        if (!response.ok) {
-            console.error('Gitcoin API error:', response.status, response.statusText);
-            throw new Error(`Failed to fetch Gitcoin Passport score: ${response.status} ${response.statusText}`);
-        }
-        const data = await response.json();
-        console.log("Gitcoin Passport Score Data:", data);
-        return { score: data.score };
+}, async (input) => {
+    const response = await fetch(`https://scorer.gitcoin.co/passport/score/${input.address}`);
+    if (!response.ok) {
+        console.error('Gitcoin API error:', response.status, response.statusText);
+        throw new Error(`Failed to fetch Gitcoin Passport score: ${response.status} ${response.statusText}`);
     }
+    const data = await response.json();
+    console.log("Gitcoin Passport Score Data:", data);
+    return { score: data.score };
 });
 
 const gitcoinPassportScorePrompt = ai.definePrompt({
