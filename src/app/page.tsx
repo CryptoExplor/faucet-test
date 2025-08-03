@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, type FC } from "react";
@@ -172,30 +173,30 @@ export default function Home() {
   const selectedNetwork = chains.find(c => c.id === parseInt(selectedChainId));
 
   return (
-    <main className="min-h-screen bg-background p-4">
-      <div className="max-w-md mx-auto space-y-6">
+    <main className="min-h-screen bg-background p-4 flex items-center justify-center">
+      <div className="max-w-md mx-auto space-y-6 w-full">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-semibold">Multi-Chain Faucet</h1>
-          <p className="text-muted-foreground">Get testnet tokens for development across multiple chains</p>
+          <h1 className="text-3xl font-bold text-primary">SepoliaDrop</h1>
+          <p className="text-muted-foreground">A Multi-Chain Faucet for the modern developer.</p>
         </div>
 
-        <Card>
+        <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5" />
-              Wallet Connection
+              <Wallet className="h-5 w-5 text-primary" />
+              <span>Wallet Connection</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             {!isConnected ? (
-              <Button onClick={connectWallet} className="w-full">
+              <Button onClick={connectWallet} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
                 Connect MetaMask
               </Button>
             ) : (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between p-2 bg-secondary rounded-md">
                   <span className="text-sm text-muted-foreground">Connected:</span>
-                  <Badge variant="secondary">{`${address.substring(0, 6)}...${address.substring(address.length - 4)}`}</Badge>
+                  <Badge variant="outline" className="border-primary text-primary">{`${address.substring(0, 6)}...${address.substring(address.length - 4)}`}</Badge>
                 </div>
                 <Button variant="outline" onClick={handleDisconnectWallet} className="w-full">
                   Disconnect
@@ -206,37 +207,40 @@ export default function Home() {
         </Card>
 
         {isConnected && (
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle>Gitcoin Passport Score</CardTitle>
-              <CardDescription>Minimum score of {ELIGIBILITY_THRESHOLD} required to claim tokens</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                    <BadgeCheck className="h-5 w-5 text-primary" />
+                    <span>Gitcoin Passport</span>
+                </CardTitle>
+              <CardDescription>A minimum score of {ELIGIBILITY_THRESHOLD} is required.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingScore ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Fetching your Passport score...</span>
+                <div className="flex items-center justify-center gap-2 p-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span className="text-muted-foreground">Verifying Passport...</span>
                 </div>
               ) : passportScore !== null ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span>Your Score:</span>
-                    <Badge variant={isEligible ? "default" : "destructive"} className="text-lg px-3 py-1">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-lg">
+                    <span className="font-medium">Your Score:</span>
+                    <Badge variant={isEligible ? "default" : "destructive"} className="text-xl px-4 py-2">
                       {passportScore.toFixed(2)}
                     </Badge>
                   </div>
                   {isEligible ? (
-                    <Alert>
-                      <CheckCircle className="h-4 w-4" />
+                    <Alert className="border-green-500 bg-green-50 text-green-700">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
                       <AlertDescription>
-                        You're eligible to claim tokens!
+                        Congratulations! You are eligible to claim tokens.
                       </AlertDescription>
                     </Alert>
                   ) : (
                     <Alert variant="destructive">
                       <XCircle className="h-4 w-4" />
                       <AlertDescription>
-                        Your score is below the minimum threshold of {ELIGIBILITY_THRESHOLD}
+                        Your score is below the minimum threshold.
                       </AlertDescription>
                     </Alert>
                   )}
@@ -247,23 +251,25 @@ export default function Home() {
         )}
 
         {isConnected && isEligible && (
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle>Select Chain & Claim</CardTitle>
-              <CardDescription>Choose a testnet to receive 0.01 ETH (24h cooldown per chain)</CardDescription>
+               <CardTitle className="flex items-center gap-2">
+                    <Send className="h-5 w-5 text-primary" />
+                    <span>Claim Your Tokens</span>
+                </CardTitle>
+              <CardDescription>Receive 0.01 Testnet ETH on the network of your choice.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Select Testnet:</label>
+                <label className="text-sm font-medium">Select Network</label>
                 <Select value={selectedChainId} onValueChange={setSelectedChainId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose a chain..." />
+                    <SelectValue placeholder="Choose a network..." />
                   </SelectTrigger>
                   <SelectContent>
                     {chains.map((chain) => (
                       <SelectItem key={chain.id} value={String(chain.id)}>
                         <div className="flex items-center space-x-2">
-                          <Network className="h-4 w-4 text-muted-foreground" />
                           <span>{chain.name}</span>
                         </div>
                       </SelectItem>
@@ -274,19 +280,19 @@ export default function Home() {
 
               {isOnCooldown && selectedChainId && (
                 <Alert>
-                  <AlertDescription>
+                  <AlertDescription className="text-center">
                     You can claim again in{" "}
                     {Math.ceil(timeUntilNextClaim / (1000 * 60 * 60))}{" "}
-                    hours
+                    hours.
                   </AlertDescription>
                 </Alert>
               )}
 
-              <Button onClick={handleClaim} disabled={!canClaim || isOnCooldown} className="w-full">
+              <Button onClick={handleClaim} disabled={!canClaim || isOnCooldown} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold py-3 text-base">
                 {isClaiming ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing Claim...
+                    Claiming...
                   </>
                 ) : (
                   "Claim 0.01 ETH"
@@ -297,41 +303,39 @@ export default function Home() {
         )}
 
         {claimResult && (
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {claimResult.success ? (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <CheckCircle2 className="h-6 w-6 text-green-500" />
                 ) : (
-                  <XCircle className="h-5 w-5 text-red-500" />
+                  <XCircle className="h-6 w-6 text-red-500" />
                 )}
-                {claimResult.success ? "Claim Successful!" : "Claim Failed"}
+                <span className={claimResult.success ? "text-green-500" : "text-red-500"}>
+                    {claimResult.success ? "Claim Successful!" : "Claim Failed"}
+                </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4 text-sm">
               {claimResult.success ? (
                 <>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Amount:</span>
-                      <span>{claimResult.amount}</span>
+                      <span className="text-muted-foreground">Amount:</span>
+                      <span className="font-mono">{claimResult.amount}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Chain:</span>
-                      <span>{selectedNetwork?.name}</span>
+                      <span className="text-muted-foreground">Network:</span>
+                      <span className="font-medium">{selectedNetwork?.name}</span>
                     </div>
                   </div>
                   <Separator />
                   <div className="space-y-2">
-                    <span className="text-sm text-muted-foreground">Transaction Hash:</span>
-                    <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                      <code className="text-xs break-all">{claimResult.txHash}</code>
-                      <Button asChild size="sm" variant="ghost" className="shrink-0">
-                         <a href={`${selectedNetwork?.explorerUrl}/tx/${claimResult.txHash}`} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-3 w-3" />
-                         </a>
-                      </Button>
-                    </div>
+                    <span className="text-sm text-muted-foreground">Transaction:</span>
+                     <a href={`${selectedNetwork?.explorerUrl}/tx/${claimResult.txHash}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-muted rounded-md hover:bg-secondary transition-colors">
+                      <code className="text-xs break-all text-primary">{claimResult.txHash}</code>
+                      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </a>
                   </div>
                 </>
               ) : (
@@ -343,9 +347,9 @@ export default function Home() {
           </Card>
         )}
 
-        <div className="text-center text-sm text-muted-foreground space-y-1">
-          <p>⚠️ This is for testnet tokens only</p>
-          <p>Rate limited to once per 24h per chain</p>
+        <div className="text-center text-xs text-muted-foreground pt-4">
+          <p>This is a tool for developers to get testnet tokens for Sepolia-based networks.</p>
+           <p>Rate-limited to one claim per network every 24 hours.</p>
         </div>
       </div>
     </main>
