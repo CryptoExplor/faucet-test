@@ -11,6 +11,9 @@ import {
   XCircle,
   ChevronRight,
   Send,
+  ExternalLink,
+  CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,38 +36,17 @@ import { getGitcoinPassportScore } from "@/ai/flows/gitcoin-passport-verificatio
 import { claimTokens } from "./actions";
 import { chains } from "@/lib/chains";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
 
 const ELIGIBILITY_THRESHOLD = 10;
 
-interface StatusCardProps {
-  icon: React.ReactNode;
-  title: string;
-  value: string | number | null;
-  isLoading: boolean;
-  status?: "success" | "warning" | "default";
-}
-
-const StatusCard: FC<StatusCardProps> = ({ icon, title, value, isLoading, status = 'default' }) => {
-  const statusClasses = {
-    success: 'text-green-500',
-    warning: 'text-amber-500',
-    default: 'text-muted-foreground'
-  };
-
-  return (
-    <div className="flex items-center space-x-4">
-      <div className="flex-shrink-0">{icon}</div>
-      <div className="flex-1">
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        {isLoading ? (
-          <Skeleton className="h-5 w-24 mt-1" />
-        ) : (
-          <p className={`text-sm ${statusClasses[status]}`}>{value}</p>
-        )}
-      </div>
-    </div>
-  );
+interface ClaimResult {
+    success: boolean;
+    txHash?: string;
+    amount?: string;
+    error?: string;
 }
 
 export default function Home() {
@@ -72,9 +54,12 @@ export default function Home() {
   const [address, setAddress] = useState<string | null>(null);
   const [passportScore, setPassportScore] = useState<number | null>(null);
   const [isEligible, setIsEligible] = useState<boolean>(false);
-  const [selectedChainId, setSelectedChainId] = useState<string>(String(chains[0].id));
+  const [selectedChainId, setSelectedChainId] = useState<string>("");
   const [isLoadingScore, setIsLoadingScore] = useState<boolean>(false);
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
+  const [claimResult, setClaimResult] = useState<ClaimResult | null>(null);
+  const [lastClaimTime, setLastClaimTime] = useState<Date | null>(null);
+
   const { toast } = useToast();
 
   const connectWallet = useCallback(async () => {
@@ -101,6 +86,15 @@ export default function Home() {
       });
     }
   }, [toast]);
+
+  const handleDisconnectWallet = () => {
+    setAddress(null);
+    setPassportScore(null);
+    setSelectedChainId("");
+    setClaimResult(null);
+    setLastClaimTime(null);
+    setProvider(null);
+  };
 
   const fetchScore = useCallback(async (walletAddress: string) => {
     setIsLoadingScore(true);
@@ -129,12 +123,10 @@ export default function Home() {
   }, [address, fetchScore]);
 
   useEffect(() => {
+    if(typeof window.ethereum === 'undefined') return;
     const handleAccountsChanged = (accounts: string[]) => {
       if (accounts.length === 0) {
-        setAddress(null);
-        setPassportScore(null);
-        setIsEligible(false);
-        setProvider(null);
+        handleDisconnectWallet();
       } else {
         setAddress(accounts[0]);
       }
@@ -147,131 +139,215 @@ export default function Home() {
   }, []);
 
   const handleClaim = async () => {
-    if (!address) return;
+    if (!address || !selectedChainId) return;
     setIsClaiming(true);
+    setClaimResult(null);
+
     try {
       const result = await claimTokens(address, parseInt(selectedChainId, 10));
       if (result.ok) {
-        toast({
-          title: "Claim Successful!",
-          description: (
-            <div>
-              <p>0.01 Testnet ETH sent to your address.</p>
-              <a 
-                href={`${chains.find(c => c.id === parseInt(selectedChainId))?.explorerUrl}/tx/${result.txHash}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                View Transaction <ChevronRight className="inline h-4 w-4" />
-              </a>
-            </div>
-          ),
-          action: <CheckCircle2 className="text-green-500" />,
+        setClaimResult({
+          success: true,
+          txHash: result.txHash,
+          amount: "0.01 ETH"
         });
+        setLastClaimTime(new Date());
       } else {
         throw new Error(result.message);
       }
     } catch (error: any) {
-      console.error("Claiming failed:", error);
-      toast({
-        variant: "destructive",
-        title: "Claim Failed",
-        description: error.message || "An unknown error occurred.",
-        action: <XCircle className="text-white" />,
-      });
+        setClaimResult({ success: false, error: error.message || "An unknown error occurred." });
     } finally {
       setIsClaiming(false);
     }
   };
 
+  const timeUntilNextClaim = lastClaimTime
+    ? 24 * 60 * 60 * 1000 -
+      (Date.now() - lastClaimTime.getTime())
+    : 0;
+  const isOnCooldown = timeUntilNextClaim > 0;
+  const canClaim = isEligible && selectedChainId && !isClaiming;
+  const isConnected = !!address;
   const selectedNetwork = chains.find(c => c.id === parseInt(selectedChainId));
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-2xl shadow-primary/10">
-        <CardHeader>
-          <div className="flex items-center space-x-3">
-             <div className="p-2 bg-primary/10 rounded-lg">
-                <Send className="h-6 w-6 text-primary" />
-             </div>
-            <CardTitle className="text-2xl font-bold">SepoliaDrop</CardTitle>
-          </div>
-          <CardDescription>
-            A multi-chain faucet for Sepolia testnets.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {!address ? (
-            <Button onClick={connectWallet} className="w-full" size="lg">
-              <Wallet className="mr-2 h-5 w-5" />
-              Connect Wallet
-            </Button>
-          ) : (
-            <div className="space-y-4">
-              <StatusCard
-                icon={<Wallet className="h-5 w-5 text-primary" />}
-                title="Wallet Connected"
-                value={`${address.substring(0, 6)}...${address.substring(address.length - 4)}`}
-                isLoading={false}
-              />
-              <Separator />
-              <StatusCard
-                icon={<BadgeCheck className="h-5 w-5 text-primary" />}
-                title="Gitcoin Passport Score"
-                value={passportScore !== null ? passportScore : "N/A"}
-                isLoading={isLoadingScore}
-                status={isEligible ? 'success' : 'warning'}
-              />
-            </div>
-          )}
+    <main className="min-h-screen bg-background p-4">
+      <div className="max-w-md mx-auto space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-2xl font-semibold">Multi-Chain Faucet</h1>
+          <p className="text-muted-foreground">Get testnet tokens for development across multiple chains</p>
+        </div>
 
-          {address && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Select Network</label>
-              <Select
-                value={selectedChainId}
-                onValueChange={setSelectedChainId}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a network" />
-                </SelectTrigger>
-                <SelectContent>
-                  {chains.map((chain) => (
-                    <SelectItem key={chain.id} value={String(chain.id)}>
-                      <div className="flex items-center space-x-2">
-                        <Network className="h-4 w-4 text-muted-foreground" />
-                        <span>{chain.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </CardContent>
-        {address && (
-          <CardFooter>
-            <Button
-              onClick={handleClaim}
-              disabled={!isEligible || isClaiming || isLoadingScore}
-              className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-              size="lg"
-            >
-              {isClaiming ? (
-                <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-5 w-5" />
-              )}
-              {isClaiming
-                ? "Sending..."
-                : !isEligible && passportScore !== null
-                ? `Score too low (min ${ELIGIBILITY_THRESHOLD})`
-                : "Claim 0.01 ETH"}
-            </Button>
-          </CardFooter>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Wallet Connection
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isConnected ? (
+              <Button onClick={connectWallet} className="w-full">
+                Connect MetaMask
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Connected:</span>
+                  <Badge variant="secondary">{`${address.substring(0, 6)}...${address.substring(address.length - 4)}`}</Badge>
+                </div>
+                <Button variant="outline" onClick={handleDisconnectWallet} className="w-full">
+                  Disconnect
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {isConnected && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Gitcoin Passport Score</CardTitle>
+              <CardDescription>Minimum score of {ELIGIBILITY_THRESHOLD} required to claim tokens</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingScore ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Fetching your Passport score...</span>
+                </div>
+              ) : passportScore !== null ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span>Your Score:</span>
+                    <Badge variant={isEligible ? "default" : "destructive"} className="text-lg px-3 py-1">
+                      {passportScore.toFixed(2)}
+                    </Badge>
+                  </div>
+                  {isEligible ? (
+                    <Alert>
+                      <CheckCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        You're eligible to claim tokens!
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <Alert variant="destructive">
+                      <XCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Your score is below the minimum threshold of {ELIGIBILITY_THRESHOLD}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
         )}
-      </Card>
+
+        {isConnected && isEligible && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Select Chain & Claim</CardTitle>
+              <CardDescription>Choose a testnet to receive 0.01 ETH (24h cooldown per chain)</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select Testnet:</label>
+                <Select value={selectedChainId} onValueChange={setSelectedChainId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a chain..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {chains.map((chain) => (
+                      <SelectItem key={chain.id} value={String(chain.id)}>
+                        <div className="flex items-center space-x-2">
+                          <Network className="h-4 w-4 text-muted-foreground" />
+                          <span>{chain.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {isOnCooldown && selectedChainId && (
+                <Alert>
+                  <AlertDescription>
+                    You can claim again in{" "}
+                    {Math.ceil(timeUntilNextClaim / (1000 * 60 * 60))}{" "}
+                    hours
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <Button onClick={handleClaim} disabled={!canClaim || isOnCooldown} className="w-full">
+                {isClaiming ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing Claim...
+                  </>
+                ) : (
+                  "Claim 0.01 ETH"
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {claimResult && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {claimResult.success ? (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-red-500" />
+                )}
+                {claimResult.success ? "Claim Successful!" : "Claim Failed"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {claimResult.success ? (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Amount:</span>
+                      <span>{claimResult.amount}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Chain:</span>
+                      <span>{selectedNetwork?.name}</span>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <span className="text-sm text-muted-foreground">Transaction Hash:</span>
+                    <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                      <code className="text-xs break-all">{claimResult.txHash}</code>
+                      <Button asChild size="sm" variant="ghost" className="shrink-0">
+                         <a href={`${selectedNetwork?.explorerUrl}/tx/${claimResult.txHash}`} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-3 w-3" />
+                         </a>
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <Alert variant="destructive">
+                  <AlertDescription>{claimResult.error}</AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="text-center text-sm text-muted-foreground space-y-1">
+          <p>⚠️ This is for testnet tokens only</p>
+          <p>Rate limited to once per 24h per chain</p>
+        </div>
+      </div>
     </main>
   );
 }
