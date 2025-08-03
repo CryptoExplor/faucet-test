@@ -75,13 +75,13 @@ function HomeComponent() {
 
   useEffect(() => {
     const m = searchParams.get('m');
-    if (m === 'i') {
-      const sepoliaNetwork = getNetworkById("sepolia");
+    if (m === 'i' && activeNetworks.length > 0) {
+      const sepoliaNetwork = activeNetworks.find(n => n.id === "sepolia");
       if (sepoliaNetwork) {
         setSelectedNetwork(sepoliaNetwork);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, activeNetworks]);
 
   useEffect(() => {
     // Set default network if none is selected and networks are loaded
