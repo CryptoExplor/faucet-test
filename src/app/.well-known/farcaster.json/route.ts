@@ -24,5 +24,5 @@ export async function GET(req: NextRequest) {
     // }
   };
 
-  return NextResponse.json({ frame: manifest });
+  return NextResponse.json(manifest);
 }
