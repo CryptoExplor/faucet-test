@@ -4,10 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { address: string } }
+  { params }: { params: Promise<{ address: string }> }
 ) {
   try {
-    const { address } = params;
+    const { address } = await params;
     if (!address) {
       return NextResponse.json({ message: "Address is required" }, { status: 400 });
     }
@@ -24,7 +24,7 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { address: string } }
+  { params }: { params: Promise<{ address: string }> }
 ) {
   return GET(req, { params });
 }

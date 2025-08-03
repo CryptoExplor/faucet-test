@@ -1,7 +1,7 @@
 
 "use client";
 
-import { PropsWithChildren, createContext } from "react";
+import { PropsWithChildren, createContext, useContext } from "react";
 import { Address, useAccount } from "wagmi";
 import {
   QueryClient,
@@ -15,11 +15,13 @@ import { usePassportScore, usePassportSubmit } from "./hooks";
 
 type PassportContextType = {
   address?: Address;
-  submit: UseMutationResult<Passport, unknown, void, unknown>;
+  submit: UseMutationResult<Passport, Error, void, unknown>;
   score: UseQueryResult<Passport | null, Error>;
 };
 
 export const Context = createContext<PassportContextType>({} as PassportContextType);
+
+export const usePassport = () => useContext(Context);
 
 function Provider({ children }: PropsWithChildren) {
   const { address } = useAccount();
@@ -30,7 +32,7 @@ function Provider({ children }: PropsWithChildren) {
     address,
     score,
     submit,
-  } as PassportContextType;
+  };
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

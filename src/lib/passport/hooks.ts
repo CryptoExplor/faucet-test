@@ -34,13 +34,14 @@ export function usePassportSubmit(address?: Address) {
   const client = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<Passport> => {
         if (!address) throw new Error("address not provided");
         return api.submitPassport(address as Address)
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
         // Trigger refetch of score
         client.invalidateQueries({ queryKey: ["score", address] });
+        return data;
     }
   });
 }
