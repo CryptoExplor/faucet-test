@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { Network } from "@/lib/schema";
 import { Settings, Shield, Activity, TrendingUp, Loader2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -23,43 +24,22 @@ export default function AdminDashboard() {
     isActive: true,
   });
 
-  const { data: networks, isLoading: isLoadingNetworks } = useQuery<Network[]>({
-    queryKey: ["networks"],
-    queryFn: async () => {
-      const res = await fetch('/api/networks?all=true');
-      if(!res.ok) throw new Error("Failed to fetch networks");
-      const data = await res.json();
-      return data.networks;
-    }
+  const { data: networksData, isLoading: isLoadingNetworks } = useQuery<{networks: Network[]}>({
+    queryKey: ["/api/networks", {all: 'true'}],
   });
+  const networks = networksData?.networks;
 
   const { data: stats, isLoading: isLoadingStats } = useQuery<{ totalClaims: number; uniqueClaimers: string; totalAmountClaimed: string }>({
-    queryKey: ["admin-stats"],
-     queryFn: async () => {
-      const res = await fetch('/api/admin/stats');
-      if(!res.ok) throw new Error("Failed to fetch stats");
-      const data = await res.json();
-      return data;
-    }
+    queryKey: ["/api/admin/stats"],
   });
 
   const updateNetworkMutation = useMutation({
     mutationFn: async ({ networkId, updates }: { networkId: string; updates: Partial<Network> }) => {
-      const response = await fetch(`/api/admin/networks/${networkId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updates),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
+      const response = await apiRequest("PATCH", `/api/admin/networks/${networkId}`, updates);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["networks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/networks"] });
       setEditingNetwork(null);
       toast({
         title: "Success",

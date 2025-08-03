@@ -42,6 +42,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ethers, type BrowserProvider } from "ethers";
+import { useQuery } from "@tanstack/react-query";
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -73,7 +74,7 @@ export default function Home() {
   const [address, setAddress] = useState<string | null>(null);
   const [passportScore, setPassportScore] = useState<number | null>(null);
   const [isEligible, setIsEligible] = useState<boolean>(false);
-  const [networks, setNetworks] = useState<Network[]>([]);
+  
   const [selectedChainId, setSelectedChainId] = useState<string>("");
   const [isLoadingScore, setIsLoadingScore] = useState<boolean>(false);
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
@@ -82,25 +83,18 @@ export default function Home() {
 
   const { toast } = useToast();
 
-  const fetchNetworks = useCallback(async () => {
-    try {
-        const res = await fetch('/api/networks');
-        const data = await res.json();
-        setNetworks(data.networks);
-        if (data.networks.length > 0) {
-          const defaultNetwork = data.networks[0];
-          setSelectedChainId(String(defaultNetwork.chainId));
-        }
-    } catch (e) {
-        console.error("Failed to fetch networks", e);
-        toast({ title: "Error", description: "Could not fetch supported networks.", variant: "destructive" });
-    }
-  }, [toast]);
-
+  const { data: networkData } = useQuery<{networks: Network[]}>({
+    queryKey: ['/api/networks']
+  });
+  const networks = networkData?.networks || [];
 
   useEffect(() => {
-    fetchNetworks();
-  }, [fetchNetworks]);
+    if (networks.length > 0 && !selectedChainId) {
+      const defaultNetwork = networks[0];
+      setSelectedChainId(String(defaultNetwork.chainId));
+    }
+  }, [networks, selectedChainId]);
+
 
   const connectWallet = useCallback(async () => {
     if (typeof window.ethereum === "undefined") {
