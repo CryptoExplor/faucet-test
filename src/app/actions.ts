@@ -3,7 +3,7 @@
 
 import { ethers } from "ethers";
 import { z } from "zod";
-import { getNetworkByChainId, getNetworkById } from "@/lib/networks";
+import { getNetworkByChainId } from "@/lib/networks";
 import { Redis } from "@upstash/redis";
 
 // Initialize Redis client for rate limiting
@@ -17,6 +17,38 @@ const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_RE
 // Rate limiting constants
 const RATE_LIMIT_HOURS = 24; // 24 hours
 const RATE_LIMIT_SECONDS = RATE_LIMIT_HOURS * 60 * 60;
+const ELIGIBILITY_THRESHOLD = 10;
+
+export async function getPassportScore(address: string) {
+    const apiKey = process.env.GITCOIN_API_KEY;
+    const scorerId = process.env.GITCOIN_SCORER_ID;
+
+    if (!apiKey || !scorerId) {
+      console.error("Gitcoin API credentials not configured. Set GITCOIN_API_KEY and GITCOIN_SCORER_ID.");
+      return { score: 0, isEligible: false };
+    }
+
+    try {
+      const response = await fetch(`https://api.scorer.gitcoin.co/registry/score/${scorerId}/${address}`, {
+           headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+          const data = await response.json();
+          const score = parseFloat(data.score || "0");
+          return { score, isEligible: score >= ELIGIBILITY_THRESHOLD };
+      } else {
+           const errorBody = await response.text();
+          console.error(`Gitcoin API Error for ${address}: ${errorBody}`);
+      }
+
+    } catch (error) {
+        console.error(`Error fetching Gitcoin score for ${address}:`, error);
+    }
+    
+    // Default to a score of 0 in case of any errors
+    return { score: 0, isEligible: false };
+}
 
 
 export async function claimTokens(address: string, chainId: number, passportScore: number) {
@@ -48,7 +80,7 @@ export async function claimTokens(address: string, chainId: number, passportScor
   }
 
   // Verify Passport score threshold
-  if (passportScore < 10) {
+  if (passportScore < ELIGIBILITY_THRESHOLD) {
     return { ok: false, message: "Insufficient Gitcoin Passport score. Minimum required: 10" };
   }
 

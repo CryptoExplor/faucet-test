@@ -1,5 +1,5 @@
 
-import { getGitcoinPassportScore } from "@/ai/flows/gitcoin-passport-verification";
+import { getPassportScore } from "@/app/actions";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -11,7 +11,7 @@ export async function GET(
     if (!address) {
       return NextResponse.json({ message: "Address is required" }, { status: 400 });
     }
-    const result = await getGitcoinPassportScore({ address });
+    const result = await getPassportScore(address);
     return NextResponse.json(result);
   } catch (error: any) {
     console.error("Failed to fetch passport score:", error);
