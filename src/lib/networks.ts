@@ -1,6 +1,9 @@
+
 import { db } from "./db";
-import { networks, type Network, type InsertNetwork } from "./schema";
-import { eq } from "drizzle-orm";
+import { networks, faucetClaims, type Network, type InsertNetwork } from "./schema";
+import { eq, sql, desc, count } from "drizzle-orm";
+import { z } from "zod";
+
 
 // Comprehensive Superchain Network configurations - ordered display
 export const SUPPORTED_NETWORKS: InsertNetwork[] = [
@@ -109,7 +112,6 @@ export const SUPPORTED_NETWORKS: InsertNetwork[] = [
 // Initialize networks in database
 export async function initializeNetworks() {
   try {
-    // Get all existing network chainIds
     const existingNetworks = await db.select({ chainId: networks.chainId }).from(networks);
     const existingChainIds = new Set(existingNetworks.map(n => n.chainId));
 
@@ -124,15 +126,18 @@ export async function initializeNetworks() {
   }
 }
 
-// Get all active networks
 export async function getActiveNetworks(): Promise<Network[]> {
   return await db
     .select()
     .from(networks)
+    .orderBy(desc(networks.name))
     .where(eq(networks.isActive, true));
 }
 
-// Get network by chain ID
+export async function getAllNetworks(): Promise<Network[]> {
+  return await db.select().from(networks).orderBy(desc(networks.name));
+}
+
 export async function getNetworkByChainId(chainId: number): Promise<Network | null> {
   const result = await db
     .select()
@@ -143,7 +148,6 @@ export async function getNetworkByChainId(chainId: number): Promise<Network | nu
   return result[0] || null;
 }
 
-// Get network by ID
 export async function getNetworkById(id: string): Promise<Network | null> {
   const result = await db
     .select()
@@ -154,7 +158,38 @@ export async function getNetworkById(id: string): Promise<Network | null> {
   return result[0] || null;
 }
 
-// All Superchain networks use the same private key for unified deployment
-export function getNetworkPrivateKeyEnv(chainId: number): string {
-  return "FAUCET_PRIVATE_KEY";
+const updateNetworkSchema = z.object({
+  faucetAmount: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export async function updateNetwork(networkId: string, updates: z.infer<typeof updateNetworkSchema>): Promise<Network | null> {
+  const result = await db
+    .update(networks)
+    .set(updates)
+    .where(eq(networks.id, networkId))
+    .returning();
+
+  return result[0] || null;
+}
+
+
+export async function getAdminStats() {
+    const totalClaimsResult = await db.select({
+        count: count()
+    }).from(faucetClaims);
+    
+    const uniqueClaimersResult = await db.select({
+       count: count(sql`distinct "wallet_address"`)
+    }).from(faucetClaims);
+
+    const totalAmountClaimedResult = await db.select({
+      total: sql<string>`sum(amount::decimal)`
+    }).from(faucetClaims);
+
+    return {
+        totalClaims: totalClaimsResult[0].count,
+        uniqueClaimers: uniqueClaimersResult[0].count,
+        totalAmountClaimed: totalAmountClaimedResult[0].total || "0",
+    }
 }
