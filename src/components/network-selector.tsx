@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -10,16 +9,14 @@ import { Skeleton } from "./ui/skeleton";
 import { Coins } from "lucide-react";
 
 interface NetworkSelectorProps {
+  networks: Network[];
+  isLoading: boolean;
   selectedNetwork?: Network | null;
   onNetworkSelect: (network: Network | null) => void;
   className?: string;
 }
 
-export function NetworkSelector({ selectedNetwork, onNetworkSelect, className }: NetworkSelectorProps) {
-  const { data: networkData, isLoading } = useQuery<{ networks: Network[] }>({
-    queryKey: ["/api/networks"],
-  });
-  const networks = networkData?.networks || [];
+export function NetworkSelector({ networks, isLoading, selectedNetwork, onNetworkSelect, className }: NetworkSelectorProps) {
 
   const handleNetworkChange = (networkId: string) => {
     const network = networks?.find(n => n.id === networkId);

@@ -67,7 +67,7 @@ function HomeComponent() {
   const searchParams = useSearchParams();
 
   // Fetch active networks
-  const { data: networkData } = useQuery<{ networks: Network[] }>({
+  const { data: networkData, isLoading: isLoadingNetworks } = useQuery<{ networks: Network[] }>({
     queryKey: ["/api/networks"],
   });
   const activeNetworks = networkData?.networks || [];
@@ -286,7 +286,12 @@ function HomeComponent() {
               </Card>
         </div>
         <div className="space-y-6">
-            <NetworkSelector selectedNetwork={selectedNetwork} onNetworkSelect={setSelectedNetwork} />
+            <NetworkSelector 
+              networks={activeNetworks}
+              isLoading={isLoadingNetworks}
+              selectedNetwork={selectedNetwork} 
+              onNetworkSelect={setSelectedNetwork} 
+            />
 
             {/* Faucet Claim */}
             <Card className="shadow-lg">
