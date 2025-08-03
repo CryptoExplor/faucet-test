@@ -2,15 +2,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
-  const host = req.nextUrl.host;
-  const protocol = req.nextUrl.protocol;
-  const baseUrl = `${protocol}//${host}`;
+  const baseUrl = "https://faucet-test-flax.vercel.app";
 
   const manifest = {
     name: "Superchain Faucet",
     version: "1",
     iconUrl: `${baseUrl}/icon.svg`,
-    homeUrl: `${baseUrl}/frame`,
+    homeUrl: `${baseUrl}/`,
     splashImageUrl: `${baseUrl}/splash.svg`,
     splashBackgroundColor: "#F5EEFC",
     subtitle: "Faucet",
