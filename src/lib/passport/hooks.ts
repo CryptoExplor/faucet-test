@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Address } from "wagmi";
@@ -13,7 +14,7 @@ export function usePassport() {
 }
 
 export function usePassportScore(address?: Address) {
-  return useQuery({
+  return useQuery<Passport | null, Error>({
     queryKey: ["score", address],
     queryFn: async () => {
       if (!address) return null;
@@ -25,14 +26,14 @@ export function usePassportScore(address?: Address) {
     },
     enabled: !!address, 
     retry: false, 
-    refetchInterval: (query) => (query.state.data?.status === PassportStatus.PROCESSING ? 2000 : false),
+    refetchInterval: (data: Passport | null) => (data?.status === PassportStatus.PROCESSING ? 2000 : false),
   });
 }
 
 export function usePassportSubmit(address?: Address) {
   const client = useQueryClient();
 
-  return useMutation({
+  return useMutation<Passport, Error, void, unknown>({
     mutationFn: async (): Promise<Passport> => {
         if (!address) throw new Error("address not provided");
         return api.submitPassport(address as Address)

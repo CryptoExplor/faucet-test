@@ -6,7 +6,7 @@ export enum PassportStatus {
 }
 export interface Passport {
   score: number;
-  isEligible: boolean;
+  passing_score: boolean;
   address: string;
   status: PassportStatus;
   error?: string;

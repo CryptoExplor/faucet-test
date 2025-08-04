@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
@@ -39,6 +40,7 @@ import { NetworkSelector } from "@/components/network-selector";
 import { usePassport } from "@/lib/passport/hooks";
 import { PassportStatus } from "@/lib/passport/types";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -146,7 +148,7 @@ function HomeComponent() {
   };
 
   const passportData = passportQuery.data;
-  const isEligible = passportData?.isEligible ?? false;
+  const isEligible = passportData?.passing_score ?? false;
   const canClaim = isEligible && selectedNetwork && !isClaiming;
 
   return (
@@ -372,5 +374,4 @@ function Home() {
   );
 }
 
-import { queryClient } from "@/lib/queryClient";
 export default Home;

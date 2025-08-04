@@ -23,7 +23,11 @@ export const submitPassport = async (address: Address): Promise<Passport> => {
             const errorData = await response.json().catch(() => ({ message: 'Failed to submit passport' }));
             throw new Error(errorData.message);
         }
-        return response.json();
+        const data = await response.json();
+        return {
+            ...data,
+            passing_score: data.isEligible
+        };
     } catch (error) {
         console.error("Error submitting passport:", error);
         throw error;
