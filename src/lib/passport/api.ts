@@ -1,35 +1,39 @@
 
+import axios from "axios";
+import { Passport } from "./types";
 import { Address } from "viem";
-import type { Passport } from "./types";
 
-export const getScore = async (address: Address): Promise<Passport> => {
-  try {
-    const response = await fetch(`/api/passport/${address}`);
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch passport score' }));
-        throw new Error(errorData.message);
-    }
-    return response.json();
-  } catch (error) {
-    console.error("Error fetching passport score:", error);
-    throw error;
-  }
-};
+const baseURL =
+  process.env.NEXT_PUBLIC_GC_API_URL ||
+  "https://api.scorer.gitcoin.co/registry";
 
-export const submitPassport = async (address: Address): Promise<Passport> => {
-    try {
-        const response = await fetch(`/api/passport/${address}`, { method: 'POST' });
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: 'Failed to submit passport' }));
-            throw new Error(errorData.message);
-        }
-        const data = await response.json();
-        return {
-            ...data,
-            passing_score: data.isEligible
-        };
-    } catch (error) {
-        console.error("Error submitting passport:", error);
-        throw error;
-    }
+const apiKey = process.env.NEXT_PUBLIC_GC_API_KEY;
+if (!apiKey) {
+    console.warn("NEXT_PUBLIC_GC_API_KEY is not set. Passport requests may fail.");
 }
+
+const api = axios.create({
+  baseURL,
+  headers: { common: { "x-api-key": apiKey } },
+});
+
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    console.warn("Gitcoin API request error", err);
+    return Promise.reject(err.response?.data || err.message);
+  }
+);
+
+const scorer_id = process.env.NEXT_PUBLIC_GC_SCORER_ID;
+if (!scorer_id) {
+    console.warn("NEXT_PUBLIC_GC_SCORER_ID is not set. Passport requests will fail.");
+}
+
+export const getScore = (address: Address) =>
+  api.get<Passport>(`/score/${scorer_id}/${address}`).then((r) => r.data);
+
+export const submitPassport = (address: Address) =>
+  api
+    .post<Passport>(`/submit-passport`, { address, scorer_id })
+    .then((r) => r.data);

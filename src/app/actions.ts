@@ -25,7 +25,8 @@ export async function getPassportScore(address: string) {
 
     if (!apiKey || !scorerId) {
       console.error("Gitcoin API credentials not configured. Set GITCOIN_API_KEY and GITCOIN_SCORER_ID.");
-      return { score: 0, isEligible: false, status: 'ERROR', error: 'Server configuration error.' };
+      // Return a default score instead of an error to allow claim checks to proceed
+      return { score: 0 };
     }
 
     try {
@@ -35,22 +36,22 @@ export async function getPassportScore(address: string) {
 
       if (response.status === 404) {
           console.log(`No Gitcoin Passport found for address: ${address}`);
-          return { score: 0, isEligible: false, status: 'DONE' };
+          return { score: 0 };
       }
 
       if (response.ok) {
           const data = await response.json();
           const score = parseFloat(data.score || "0");
-          return { score, isEligible: score >= ELIGIBILITY_THRESHOLD, status: data.status || 'DONE' };
+          return { score };
       } else {
            const errorBody = await response.json();
            console.error(`Gitcoin API Error for ${address}: ${response.status}`, errorBody);
-           return { score: 0, isEligible: false, status: 'ERROR', error: errorBody.detail || 'Unknown Gitcoin API error' };
+           return { score: 0 };
       }
 
     } catch (error) {
         console.error(`Error fetching Gitcoin score for ${address}:`, error);
-        return { score: 0, isEligible: false, status: 'ERROR', error: 'Failed to retrieve Gitcoin Passport score.' };
+        return { score: 0 };
     }
 }
 

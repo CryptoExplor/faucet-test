@@ -14,11 +14,11 @@ export function usePassport() {
 }
 
 export function usePassportScore(address?: Address) {
-  return useQuery<Passport | null, Error>({
+  return useQuery<Passport, Error>({
     queryKey: ["score", address],
     queryFn: async () => {
-      if (!address) return null;
-      const r = await api.getScore(address as Address)
+      if (!address) throw new Error("Address not provided");
+      const r = await api.getScore(address);
       if (r.status === PassportStatus.PROCESSING) {
         console.log("Retry until status is DONE or ERROR", r);
       }
@@ -26,7 +26,7 @@ export function usePassportScore(address?: Address) {
     },
     enabled: !!address, 
     retry: false, 
-    refetchInterval: (data: Passport | null) => (data?.status === PassportStatus.PROCESSING ? 2000 : false),
+    refetchInterval: (query) => (query.state.data?.status === PassportStatus.PROCESSING ? 2000 : false),
   });
 }
 
@@ -36,7 +36,7 @@ export function usePassportSubmit(address?: Address) {
   return useMutation<Passport, Error, void, unknown>({
     mutationFn: async (): Promise<Passport> => {
         if (!address) throw new Error("address not provided");
-        return api.submitPassport(address as Address)
+        return api.submitPassport(address)
     },
     onSuccess: (data) => {
         // Trigger refetch of score
