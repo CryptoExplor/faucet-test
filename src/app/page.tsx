@@ -125,6 +125,7 @@ function HomeComponent() {
             title: "Claim Successful!",
             description: `Sent ${result.network.faucetAmount} ${result.network.nativeCurrency} to your wallet.`,
         });
+        await queryClient.invalidateQueries({ queryKey: ["rateLimit", address, selectedNetwork.id] });
         passportQuery.refetch();
       } else {
         throw new Error(result.message);
@@ -363,10 +364,13 @@ function HomeComponent() {
   );
 }
 
-export default function Home() {
+function Home() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <HomeComponent />
     </Suspense>
   );
 }
+
+import { queryClient } from "@/lib/queryClient";
+export default Home;
