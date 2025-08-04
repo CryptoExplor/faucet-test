@@ -14,19 +14,29 @@ export function usePassport() {
 }
 
 export function usePassportScore(address?: Address) {
-  return useQuery<Passport, Error>({
+  return useQuery<Passport | null, Error>({
     queryKey: ["score", address],
     queryFn: async () => {
-      if (!address) throw new Error("Address not provided");
-      const r = await api.getScore(address);
-      if (r.status === PassportStatus.PROCESSING) {
-        console.log("Retry until status is DONE or ERROR", r);
+      if (!address) return null;
+      try {
+        const r = await api.getScore(address);
+        // The API might return a string for score, ensure it's a number
+        const score = typeof r.score === 'string' ? parseFloat(r.score) : r.score;
+        if (r.status === "PROCESSING") {
+          console.log("Retry until status is DONE or ERROR", r);
+        }
+        return { ...r, score: isNaN(score) ? 0 : score };
+      } catch (error) {
+        // If the score is not found (404), return null instead of throwing error
+        if ((error as any)?.response?.status === 404) {
+          return null;
+        }
+        throw error;
       }
-      return r;
     },
     enabled: !!address, 
     retry: false, 
-    refetchInterval: (query) => (query.state.data?.status === PassportStatus.PROCESSING ? 2000 : false),
+    refetchInterval: (query) => (query.state.data?.status === "PROCESSING" ? 2000 : false),
   });
 }
 

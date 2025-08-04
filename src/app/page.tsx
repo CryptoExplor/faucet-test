@@ -39,8 +39,9 @@ import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
 import { usePassport } from "@/lib/passport/hooks";
 import { PassportStatus } from "@/lib/passport/types";
-import { useQuery } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { useQueryClient } from "@tanstack/react-query";
+import { getActiveNetworks } from "@/lib/networks";
+
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -65,17 +66,15 @@ function HomeComponent() {
 
   const { toast } = useToast();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
 
-  const { data: networkData, isLoading: isLoadingNetworks } = useQuery<{ networks: Network[] }>({
-    queryKey: ["/api/networks"],
-    queryFn: async () => {
-        const res = await fetch('/api/networks');
-        if (!res.ok) throw new Error("Failed to fetch networks");
-        return res.json();
-    }
-  });
-  const activeNetworks = networkData?.networks || [];
+  const [activeNetworks, setActiveNetworks] = useState<Network[]>([]);
 
+  useEffect(() => {
+    // Fetch networks on client since this is a client component
+    const networks = getActiveNetworks();
+    setActiveNetworks(networks);
+  }, []);
 
   useEffect(() => {
     if (!selectedNetwork && activeNetworks.length > 0) {
@@ -109,7 +108,7 @@ function HomeComponent() {
 
 
   const handleClaim = async () => {
-    if (!address || !selectedNetwork?.chainId || !passportQuery.data?.score) return;
+    if (!address || !selectedNetwork?.chainId || passportQuery.data?.score === undefined) return;
     setIsClaiming(true);
     setClaimResult(null);
 
@@ -148,7 +147,8 @@ function HomeComponent() {
   };
 
   const passportData = passportQuery.data;
-  const isEligible = passportData?.passing_score ?? false;
+  const score = passportData?.score ?? 0;
+  const isEligible = score >= ELIGIBILITY_THRESHOLD;
   const canClaim = isEligible && selectedNetwork && !isClaiming;
 
   return (
@@ -242,17 +242,17 @@ function HomeComponent() {
                       <BadgeCheck className="text-muted-foreground/50 text-3xl mx-auto mb-3" />
                       <p className="text-muted-foreground">Connect your wallet to check your score</p>
                     </div>
-                  ) : passportQuery.isLoading || passportData?.status === PassportStatus.PROCESSING ? (
+                  ) : passportQuery.isLoading || passportData?.status === "PROCESSING" ? (
                     <div className="flex items-center justify-center gap-2 p-4">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span className="text-muted-foreground">Verifying Passport...</span>
                     </div>
-                  ) : passportData?.status === PassportStatus.DONE ? (
+                  ) : passportData?.status === "DONE" ? (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between text-lg">
                         <span className="font-medium">Your Score:</span>
                         <Badge variant={isEligible ? "default" : "destructive"} className="bg-accent text-accent-foreground text-xl px-4 py-2">
-                          {passportData.score.toFixed(2)}
+                          {score.toFixed(2)}
                         </Badge>
                       </div>
                       {isEligible ? (

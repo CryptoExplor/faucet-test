@@ -1,14 +1,14 @@
 
 export enum PassportStatus {
-    DONE = "DONE",
-    ERROR = "ERROR",
-    PROCESSING = "PROCESSING"
+    PROCESSING,
+    DONE,
+    ERROR,
 }
 export interface Passport {
   score: number;
   passing_score: boolean;
   address: string;
-  status: PassportStatus;
+  status: "DONE" | "PROCESSING" | "ERROR";
   error?: string;
   last_score_timestamp: string;
 }
