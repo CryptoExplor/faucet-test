@@ -37,7 +37,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAccount, useDisconnect } from "wagmi";
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
-import { getNetworkById } from "@/lib/networks";
+import { getNetworkById, getActiveNetworks } from "@/lib/networks";
 import { usePassport } from "@/lib/passport/hooks";
 import { PassportStatus } from "@/lib/passport/types";
 import { useQuery } from "@tanstack/react-query";
@@ -66,29 +66,24 @@ function HomeComponent() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
 
-  // Fetch active networks
-  const { data: networkData, isLoading: isLoadingNetworks } = useQuery<{ networks: Network[] }>({
-    queryKey: ["/api/networks"],
-  });
-  const activeNetworks = networkData?.networks || [];
-
+  // This is now synchronous, so we can use it directly
+  const activeNetworks = getActiveNetworks();
 
   useEffect(() => {
-    const m = searchParams.get('m');
-    if (m === 'i' && activeNetworks.length > 0) {
-      const sepoliaNetwork = activeNetworks.find(n => n.id === "sepolia");
-      if (sepoliaNetwork) {
-        setSelectedNetwork(sepoliaNetwork);
-      }
-    }
-  }, [searchParams, activeNetworks]);
-
-  useEffect(() => {
-    // Set default network if none is selected and networks are loaded
+    // Set default network if none is selected and networks are available
     if (!selectedNetwork && activeNetworks.length > 0) {
-        setSelectedNetwork(activeNetworks[0]);
+      const m = searchParams.get('m');
+      if (m === 'i') {
+        const sepoliaNetwork = activeNetworks.find(n => n.id === "sepolia");
+        if (sepoliaNetwork) {
+          setSelectedNetwork(sepoliaNetwork);
+          return;
+        }
+      }
+      // Fallback to the first available network
+      setSelectedNetwork(activeNetworks[0]);
     }
-  }, [selectedNetwork, activeNetworks]);
+  }, [selectedNetwork, activeNetworks, searchParams]);
 
 
   const handleDisconnectWallet = () => {
@@ -287,8 +282,6 @@ function HomeComponent() {
         </div>
         <div className="space-y-6">
             <NetworkSelector 
-              networks={activeNetworks}
-              isLoading={isLoadingNetworks}
               selectedNetwork={selectedNetwork} 
               onNetworkSelect={setSelectedNetwork} 
             />
@@ -377,3 +370,5 @@ export default function Home() {
     </Suspense>
   );
 }
+
+    
