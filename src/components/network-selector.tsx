@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
@@ -13,11 +12,21 @@ interface NetworkSelectorProps {
   selectedNetwork?: Network | null;
   onNetworkSelect: (network: Network | null) => void;
   className?: string;
-  networks: Network[];
-  isLoading: boolean;
 }
 
-export function NetworkSelector({ selectedNetwork, onNetworkSelect, className, networks, isLoading }: NetworkSelectorProps) {
+export function NetworkSelector({ selectedNetwork, onNetworkSelect, className }: NetworkSelectorProps) {
+  const { data: networkData, isLoading } = useQuery<{ networks: Network[] }>({
+    queryKey: ["/api/networks"],
+    queryFn: async () => {
+        const res = await fetch("/api/networks");
+        if (!res.ok) {
+            throw new Error("Failed to fetch networks");
+        }
+        return res.json();
+    }
+  });
+  const networks = networkData?.networks || [];
+
   const handleNetworkChange = (networkId: string) => {
     const network = networks?.find(n => n.id === networkId);
     onNetworkSelect(network || null);

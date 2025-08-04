@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
@@ -67,12 +66,16 @@ function HomeComponent() {
 
   const { data: networkData, isLoading: isLoadingNetworks } = useQuery<{ networks: Network[] }>({
     queryKey: ["/api/networks"],
+    queryFn: async () => {
+        const res = await fetch('/api/networks');
+        if (!res.ok) throw new Error("Failed to fetch networks");
+        return res.json();
+    }
   });
   const activeNetworks = networkData?.networks || [];
 
 
   useEffect(() => {
-    // Set default network if none is selected and networks are available
     if (!selectedNetwork && activeNetworks.length > 0) {
       const m = searchParams.get('m');
       if (m === 'i') {
@@ -82,7 +85,6 @@ function HomeComponent() {
           return;
         }
       }
-      // Fallback to the first available network
       setSelectedNetwork(activeNetworks[0]);
     }
   }, [selectedNetwork, activeNetworks, searchParams]);
@@ -123,7 +125,6 @@ function HomeComponent() {
             title: "Claim Successful!",
             description: `Sent ${result.network.faucetAmount} ${result.network.nativeCurrency} to your wallet.`,
         });
-        // Refetch score to update rate limiting display implicitly
         passportQuery.refetch();
       } else {
         throw new Error(result.message);
@@ -173,7 +174,6 @@ function HomeComponent() {
       
       <main className="max-w-4xl mx-auto px-4 py-8 grid md:grid-cols-2 gap-8">
         <div className="space-y-6">
-            {/* Wallet Connection */}
             <Card className="shadow-lg">
                <CardHeader>
                  <CardTitle className="flex items-center justify-between">
@@ -225,7 +225,6 @@ function HomeComponent() {
               </CardContent>
             </Card>
 
-            {/* Gitcoin Passport */}
             <Card className="shadow-lg">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -286,11 +285,8 @@ function HomeComponent() {
             <NetworkSelector 
               selectedNetwork={selectedNetwork} 
               onNetworkSelect={setSelectedNetwork}
-              networks={activeNetworks}
-              isLoading={isLoadingNetworks}
             />
 
-            {/* Faucet Claim */}
             <Card className="shadow-lg">
                 <CardHeader>
                    <CardTitle className="flex items-center gap-2">
