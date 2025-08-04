@@ -13,14 +13,11 @@ interface NetworkSelectorProps {
   selectedNetwork?: Network | null;
   onNetworkSelect: (network: Network | null) => void;
   className?: string;
+  networks: Network[];
+  isLoading: boolean;
 }
 
-export function NetworkSelector({ selectedNetwork, onNetworkSelect, className }: NetworkSelectorProps) {
-  const { data: networkData, isLoading } = useQuery<{ networks: Network[] }>({
-    queryKey: ["/api/networks"],
-  });
-  const networks = networkData?.networks || [];
-
+export function NetworkSelector({ selectedNetwork, onNetworkSelect, className, networks, isLoading }: NetworkSelectorProps) {
   const handleNetworkChange = (networkId: string) => {
     const network = networks?.find(n => n.id === networkId);
     onNetworkSelect(network || null);
@@ -29,11 +26,15 @@ export function NetworkSelector({ selectedNetwork, onNetworkSelect, className }:
   if (isLoading) {
     return (
       <Card className={className}>
-        <CardContent className="p-6">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-1/4" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+              <Coins className="w-5 h-5 text-primary" />
+              <span>Select Network</span>
+          </CardTitle>
+          <CardDescription>Choose a Sepolia testnet to receive funds on.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-10 w-full" />
         </CardContent>
       </Card>
     );

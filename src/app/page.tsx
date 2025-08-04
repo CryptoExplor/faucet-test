@@ -37,7 +37,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAccount, useDisconnect } from "wagmi";
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
-import { getNetworkById, getActiveNetworks } from "@/lib/networks";
 import { usePassport } from "@/lib/passport/hooks";
 import { PassportStatus } from "@/lib/passport/types";
 import { useQuery } from "@tanstack/react-query";
@@ -66,8 +65,11 @@ function HomeComponent() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
 
-  // This is now synchronous, so we can use it directly
-  const activeNetworks = getActiveNetworks();
+  const { data: networkData, isLoading: isLoadingNetworks } = useQuery<{ networks: Network[] }>({
+    queryKey: ["/api/networks"],
+  });
+  const activeNetworks = networkData?.networks || [];
+
 
   useEffect(() => {
     // Set default network if none is selected and networks are available
@@ -283,7 +285,9 @@ function HomeComponent() {
         <div className="space-y-6">
             <NetworkSelector 
               selectedNetwork={selectedNetwork} 
-              onNetworkSelect={setSelectedNetwork} 
+              onNetworkSelect={setSelectedNetwork}
+              networks={activeNetworks}
+              isLoading={isLoadingNetworks}
             />
 
             {/* Faucet Claim */}
@@ -370,5 +374,3 @@ export default function Home() {
     </Suspense>
   );
 }
-
-    
