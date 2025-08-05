@@ -18,13 +18,8 @@ export function usePassportScore(address?: Address) {
     queryKey: ["score", address],
     queryFn: async (): Promise<Passport | null> => {
       if (!address) return null;
-      const result = await getPassportScore(address);
-      // The API returns score as a string, ensure it's a number.
-      if (result && typeof result.score === 'string') {
-        result.score = parseFloat(result.score);
-      }
-      if (result.status === PassportStatus.NOT_FOUND) return null;
-      return result as Passport;
+      // getPassportScore now returns a properly typed Passport object
+      return await getPassportScore(address);
     },
     enabled: !!address,
     retry: false,

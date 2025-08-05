@@ -5,6 +5,7 @@ import { ethers } from "ethers";
 import { z } from "zod";
 import { getNetworkByChainId } from "@/lib/networks";
 import { Redis } from "@upstash/redis";
+import { Passport, PassportStatus } from "@/lib/passport/types";
 
 // Initialize Redis client for rate limiting
 const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN 
@@ -19,13 +20,13 @@ const RATE_LIMIT_HOURS = 24;
 const RATE_LIMIT_SECONDS = RATE_LIMIT_HOURS * 60 * 60;
 const ELIGIBILITY_THRESHOLD = 8;
 
-export async function getPassportScore(address: string) {
+export async function getPassportScore(address: string): Promise<Passport> {
     const apiKey = process.env.GITCOIN_PASSPORT_API_KEY;
     const scorerId = process.env.GITCOIN_SCORER_ID;
 
     if (!apiKey || !scorerId) {
       console.error("Gitcoin API credentials not configured. Set GITCOIN_PASSPORT_API_KEY and GITCOIN_SCORER_ID.");
-      return { score: 0, status: "ERROR", error: "Gitcoin API credentials not configured on the server." };
+      return { address, score: 0, status: PassportStatus.ERROR, error: "Gitcoin API credentials not configured on the server.", last_score_timestamp: new Date().toISOString() };
     }
 
     try {
@@ -35,35 +36,38 @@ export async function getPassportScore(address: string) {
 
       if (response.status === 404) {
           console.log(`No Gitcoin Passport found for address: ${address}`);
-          return { score: 0, status: "NOT_FOUND" };
+          return { address, score: 0, status: PassportStatus.NOT_FOUND, last_score_timestamp: new Date().toISOString() };
       }
 
-      if (response.ok) {
-          const data = await response.json();
-          
-          let finalScore = 0;
+      const data = await response.json();
 
-          // **FIX:** The V2 API provides the score directly at the top level as a string.
+      if (response.ok) {
+          let finalScore = 0;
           if (data.score) {
               finalScore = parseFloat(data.score);
           }
           
-          // Ensure the final score is a valid number, defaulting to 0 if parsing fails.
           if (isNaN(finalScore)) {
               finalScore = 0;
           }
 
-          // Return the full data object but with the correctly parsed score.
-          return { ...data, score: finalScore };
+          // **FIX:** Construct a valid Passport object with the correct status.
+          // The API response doesn't have a 'status' field, so we set it based on success.
+          return {
+            ...data,
+            address,
+            score: finalScore,
+            status: PassportStatus.DONE,
+          } as Passport;
       } else {
-           const errorBody = await response.json();
-           console.error(`Gitcoin API Error for ${address}: ${response.status}`, errorBody);
-           return { score: 0, status: "ERROR", error: errorBody.detail || "Gitcoin API Error" };
+           const errorDetail = data.detail || "Gitcoin API Error";
+           console.error(`Gitcoin API Error for ${address}: ${response.status}`, errorDetail);
+           return { address, score: 0, status: PassportStatus.ERROR, error: errorDetail, last_score_timestamp: new Date().toISOString() };
       }
 
     } catch (error) {
         console.error(`Error fetching Gitcoin score for ${address}:`, error);
-        return { score: 0, status: "ERROR", error: "Failed to communicate with Gitcoin API." };
+        return { address, score: 0, status: PassportStatus.ERROR, error: "Failed to communicate with Gitcoin API.", last_score_timestamp: new Date().toISOString() };
     }
 }
 
