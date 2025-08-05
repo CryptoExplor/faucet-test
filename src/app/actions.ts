@@ -29,7 +29,7 @@ export async function getPassportScore(address: string) {
     }
 
     try {
-      const response = await fetch(`https://api.scorer.gitcoin.co/registry/score/${scorerId}/${address}`, {
+      const response = await fetch(`https://api.passport.xyz/v2/stamps/${scorerId}/score/${address}`, {
            headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
       });
 
