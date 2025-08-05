@@ -56,7 +56,7 @@ function HomeComponent() {
   const { open } = useWeb3Modal()
   const { isConnected, address } = useAccount()
   const { disconnect } = useDisconnect()
-  const { score: passportQuery, submit: passportSubmit, isEligible } = usePassport();
+  const { score: passportQuery, submit: passportSubmit, isEligible, refresh: refreshPassport } = usePassport();
 
   const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
@@ -121,7 +121,7 @@ function HomeComponent() {
             description: `Sent ${result.network.faucetAmount} ${result.network.nativeCurrency} to your wallet.`,
         });
         await queryClient.invalidateQueries({ queryKey: ["rateLimit", address, selectedNetwork.id] });
-        passportQuery.refetch();
+        refreshPassport();
       } else {
         throw new Error(result.message);
       }
@@ -235,7 +235,7 @@ function HomeComponent() {
                       <BadgeCheck className="text-muted-foreground/50 text-3xl mx-auto mb-3" />
                       <p className="text-muted-foreground">Connect your wallet to check your score</p>
                     </div>
-                  ) : passportQuery.isLoading || passportData?.status === PassportStatus.PROCESSING ? (
+                  ) : passportQuery.isLoading ? (
                     <div className="flex items-center justify-center gap-2 p-4">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span className="text-muted-foreground">Verifying Passport...</span>
@@ -248,7 +248,22 @@ function HomeComponent() {
                          {passportQuery.error.message}
                        </AlertDescription>
                      </Alert>
-                  ) : passportData?.status === PassportStatus.DONE ? (
+                  ) : !passportData ? (
+                     <div className="text-center py-4">
+                        <p className="text-muted-foreground mb-4">
+                          Could not find a Gitcoin Passport for this address.
+                        </p>
+                        <Button onClick={() => passportSubmit.mutate()} disabled={passportSubmit.isPending}>
+                            {passportSubmit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Create/Refresh Passport
+                        </Button>
+                    </div>
+                  ) : passportData.status === PassportStatus.PROCESSING ? (
+                    <div className="flex items-center justify-center gap-2 p-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <span className="text-muted-foreground">Your score is processing...</span>
+                    </div>
+                  ) : (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between text-lg">
                         <span className="font-medium">Your Score:</span>
@@ -272,15 +287,9 @@ function HomeComponent() {
                            </AlertDescription>
                          </Alert>
                       )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4">
-                        <p className="text-muted-foreground mb-4">
-                          Could not find a Gitcoin Passport for this address.
-                        </p>
-                        <Button onClick={() => passportSubmit.mutate()} disabled={passportSubmit.isPending}>
+                       <Button onClick={() => passportSubmit.mutate()} disabled={passportSubmit.isPending} size="sm" variant="outline" className="w-full">
                             {passportSubmit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Create/Refresh Passport
+                            Refresh Score
                         </Button>
                     </div>
                   )}

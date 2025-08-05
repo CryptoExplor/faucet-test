@@ -35,12 +35,15 @@ function Provider({ children }: PropsWithChildren) {
   const submit = usePassportSubmit(address);
   const queryClient = useQueryClient();
 
+  // Safer, more robust eligibility check as recommended
   const isEligible =
     score.data?.status === PassportStatus.DONE &&
-    (score.data?.score ?? 0) >= ELIGIBILITY_THRESHOLD;
+    typeof score.data.score === 'number' &&
+    score.data.score >= ELIGIBILITY_THRESHOLD;
 
+  // Guarded refresh to prevent re-fetching while already loading
   const refresh = () => {
-    if (address) {
+    if (address && !score.isFetching) {
       queryClient.invalidateQueries({ queryKey: ["score", address] });
     }
   };
