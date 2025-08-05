@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Address } from "wagmi";
@@ -20,6 +19,10 @@ export function usePassportScore(address?: Address) {
     queryFn: async (): Promise<Passport | null> => {
       if (!address) return null;
       const result = await getPassportScore(address);
+      // The API returns score as a string, ensure it's a number.
+      if (result && typeof result.score === 'string') {
+        result.score = parseFloat(result.score);
+      }
       if (result.status === PassportStatus.NOT_FOUND) return null;
       return result as Passport;
     },
@@ -45,9 +48,8 @@ export function usePassportSubmit(address?: Address) {
     mutationFn: async (): Promise<Passport> => {
       if (!address) throw new Error("address not provided");
       // In a real scenario, this would call a server action to trigger submission.
-      // For now, we just refetch the score.
+      // For now, we just refetch the score by simulating a "processing" state.
       console.log("Triggering Passport submission/refresh for", address);
-      // Simulate a call and return a processing state.
       return new Promise((resolve) => {
         setTimeout(() => {
           resolve({
