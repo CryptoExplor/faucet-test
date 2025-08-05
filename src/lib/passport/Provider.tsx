@@ -9,9 +9,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
-import type { Passport } from "./types";
+import { Passport, PassportStatus } from "./types";
 import { usePassportScore, usePassportSubmit } from "./hooks";
-import { PassportStatus } from "./types";
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -29,9 +28,10 @@ export const usePassport = () => useContext(Context);
 
 export function PassportProvider({ children }: PropsWithChildren) {
   const { address } = useAccount();
+  const queryClient = useQueryClient();
+
   const score = usePassportScore(address);
   const submit = usePassportSubmit(address);
-  const queryClient = useQueryClient();
 
   const isEligible =
     score.data?.status === PassportStatus.DONE &&
