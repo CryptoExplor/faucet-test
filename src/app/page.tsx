@@ -91,14 +91,10 @@ function HomeComponent() {
   };
   
   useEffect(() => {
-    if (passportQuery.error) {
-      toast({
-        variant: "destructive",
-        title: "Error fetching score",
-        description: passportQuery.error.message || "Could not retrieve your Gitcoin Passport score.",
-      });
+    if (passportQuery.data?.status === PassportStatus.ERROR) {
+      console.error("Passport Error:", passportQuery.data.error);
     }
-  }, [passportQuery.error, toast]);
+  }, [passportQuery.data]);
 
   const handleClaim = async () => {
     if (!address || !selectedNetwork?.chainId || passportQuery.data?.score === undefined) return;
@@ -243,12 +239,12 @@ function HomeComponent() {
                   ) : passportQuery.isError ? (
                      <Alert variant="destructive">
                        <XCircle className="h-4 w-4" />
-                       <AlertTitle>Error Verifying Passport</AlertTitle>
+                       <AlertTitle>Network Error</AlertTitle>
                        <AlertDescription>
-                         {passportQuery.error.message}
+                         Could not connect to the server. Please check your connection and try again.
                        </AlertDescription>
                      </Alert>
-                  ) : !passportData ? (
+                  ) : !passportData || passportData.status === PassportStatus.NOT_FOUND ? (
                      <div className="text-center py-4">
                         <p className="text-muted-foreground mb-4">
                           Could not find a Gitcoin Passport for this address.
@@ -263,6 +259,14 @@ function HomeComponent() {
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span className="text-muted-foreground">Your score is processing...</span>
                     </div>
+                  ) : passportData.status === PassportStatus.ERROR ? (
+                     <Alert variant="destructive">
+                       <XCircle className="h-4 w-4" />
+                       <AlertTitle>Error Verifying Passport</AlertTitle>
+                       <AlertDescription>
+                         {passportData.error || "An unknown error occurred."}
+                       </AlertDescription>
+                     </Alert>
                   ) : (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between text-lg">
