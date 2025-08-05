@@ -38,8 +38,7 @@ import { useAccount, useDisconnect } from "wagmi";
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
 import { usePassport } from "@/lib/passport/hooks";
-import { useQueryClient } from "@tanstack/react-query";
-import { getActiveNetworks } from "@/lib/networks";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -61,17 +60,15 @@ function HomeComponent() {
   const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
   const [claimResult, setClaimResult] = useState<ClaimResult | null>(null);
-  const [activeNetworks, setActiveNetworks] = useState<Network[]>([]);
+  
+  const { data: networkData } = useQuery<{ networks: Network[] }>({
+    queryKey: ["/api/networks"],
+  });
+  const activeNetworks = networkData?.networks || [];
 
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    // Fetch networks on client since this is a client component
-    const networks = getActiveNetworks();
-    setActiveNetworks(networks);
-  }, []);
 
   useEffect(() => {
     if (!selectedNetwork && activeNetworks.length > 0) {
@@ -108,7 +105,8 @@ function HomeComponent() {
     setClaimResult(null);
 
     try {
-      const result = await claimTokens(address, selectedNetwork.chainId, passportQuery.data.score);
+      const score = typeof passportQuery.data.score === 'string' ? parseFloat(passportQuery.data.score) : passportQuery.data.score;
+      const result = await claimTokens(address, selectedNetwork.chainId, score);
       if (result.ok && result.txHash && result.network) {
         setClaimResult({
           success: true,
@@ -142,7 +140,7 @@ function HomeComponent() {
   };
 
   const passportData = passportQuery.data;
-  const score = passportData?.score ?? 0;
+  const score = passportData?.score ? parseFloat(passportData.score as any) : 0;
   const isEligible = score >= ELIGIBILITY_THRESHOLD;
   const canClaim = isConnected && isEligible && selectedNetwork && !isClaiming;
 
@@ -237,12 +235,12 @@ function HomeComponent() {
                       <BadgeCheck className="text-muted-foreground/50 text-3xl mx-auto mb-3" />
                       <p className="text-muted-foreground">Connect your wallet to check your score</p>
                     </div>
-                  ) : passportQuery.isLoading || passportData?.status === "PROCESSING" ? (
+                  ) : passportQuery.isLoading || (passportData && passportData.status === "PROCESSING") ? (
                     <div className="flex items-center justify-center gap-2 p-4">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span className="text-muted-foreground">Verifying Passport...</span>
                     </div>
-                  ) : passportData?.status === "DONE" ? (
+                  ) : (passportData && passportData.status === "DONE") ? (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between text-lg">
                         <span className="font-medium">Your Score:</span>
@@ -270,7 +268,7 @@ function HomeComponent() {
                   ) : ( // Covers null, NOT_FOUND, or ERROR states
                     <div className="text-center py-4">
                         <p className="text-muted-foreground mb-4">
-                          {passportData?.error ? `Error: ${passportData.error}` : 'Could not find a Gitcoin Passport for this address.'}
+                          {(passportData as any)?.error ? `Error: ${(passportData as any).error}` : 'Could not find a Gitcoin Passport for this address.'}
                         </p>
                         <Button onClick={() => passportSubmit.mutate()} disabled={passportSubmit.isPending}>
                             {passportSubmit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
