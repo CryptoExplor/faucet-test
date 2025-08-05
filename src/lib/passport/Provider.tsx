@@ -4,8 +4,6 @@
 import { PropsWithChildren, createContext, useContext } from "react";
 import { Address, useAccount } from "wagmi";
 import {
-  QueryClient,
-  QueryClientProvider,
   UseQueryResult,
   UseMutationResult,
   useQueryClient,
@@ -29,19 +27,17 @@ export const Context = createContext<PassportContextType>({} as PassportContextT
 
 export const usePassport = () => useContext(Context);
 
-function Provider({ children }: PropsWithChildren) {
+export function PassportProvider({ children }: PropsWithChildren) {
   const { address } = useAccount();
   const score = usePassportScore(address);
   const submit = usePassportSubmit(address);
   const queryClient = useQueryClient();
 
-  // Safer, more robust eligibility check as recommended
   const isEligible =
     score.data?.status === PassportStatus.DONE &&
     typeof score.data.score === 'number' &&
     score.data.score >= ELIGIBILITY_THRESHOLD;
 
-  // Guarded refresh to prevent re-fetching while already loading
   const refresh = () => {
     if (address && !score.isFetching) {
       queryClient.invalidateQueries({ queryKey: ["score", address] });
@@ -57,14 +53,4 @@ function Provider({ children }: PropsWithChildren) {
   };
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
-}
-
-const queryClient = new QueryClient();
-
-export function PassportProvider({ children }: PropsWithChildren) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <Provider>{children}</Provider>
-    </QueryClientProvider>
-  );
 }
