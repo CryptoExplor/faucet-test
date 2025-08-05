@@ -20,11 +20,11 @@ const RATE_LIMIT_SECONDS = RATE_LIMIT_HOURS * 60 * 60;
 const ELIGIBILITY_THRESHOLD = 10;
 
 export async function getPassportScore(address: string) {
-    const apiKey = process.env.GITCOIN_API_KEY;
+    const apiKey = process.env.GITCOIN_PASSPORT_API_KEY;
     const scorerId = process.env.GITCOIN_SCORER_ID;
 
     if (!apiKey || !scorerId) {
-      console.error("Gitcoin API credentials not configured. Set GITCOIN_API_KEY and GITCOIN_SCORER_ID.");
+      console.error("Gitcoin API credentials not configured. Set GITCOIN_PASSPORT_API_KEY and GITCOIN_SCORER_ID.");
       // Return a default score instead of an error to allow claim checks to proceed
       return { score: 0 };
     }
@@ -100,9 +100,9 @@ export async function claimTokens(address: string, chainId: number, passportScor
   }
 
 
-  const mnemonic = process.env.FAUCET_MNEMONIC;
-  if (!mnemonic) {
-    console.error("FAUCET_MNEMONIC not set in .env file");
+  const privateKey = process.env.FAUCET_PRIVATE_KEY;
+  if (!privateKey) {
+    console.error("FAUCET_PRIVATE_KEY not set in .env file");
     return { ok: false, message: "Server configuration error. Faucet is not configured." };
   }
   
@@ -114,7 +114,7 @@ export async function claimTokens(address: string, chainId: number, passportScor
 
   try {
     const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const wallet = ethers.Wallet.fromPhrase(mnemonic).connect(provider);
+    const wallet = new ethers.Wallet(privateKey, provider);
 
     const balance = await provider.getBalance(wallet.address);
     const amountToSend = ethers.parseEther(selectedChain.faucetAmount);
