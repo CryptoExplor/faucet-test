@@ -41,7 +41,7 @@ import { usePassport } from "@/lib/passport/Provider";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { PassportStatus } from "@/lib/passport/types";
 
-const ELIGIBILITY_THRESHOLD = 8;
+const ELIGIBILITY_THRESHOLD = 10;
 
 interface ClaimResult {
     success: boolean;

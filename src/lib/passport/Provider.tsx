@@ -1,3 +1,4 @@
+
 "use client";
 
 import { PropsWithChildren, createContext, useContext } from "react";
@@ -11,7 +12,7 @@ import {
 import { Passport, PassportStatus } from "./types";
 import { usePassportScore, usePassportSubmit } from "./hooks";
 
-const ELIGIBILITY_THRESHOLD = 8;
+const ELIGIBILITY_THRESHOLD = 10;
 
 type PassportContextType = {
   address?: Address;

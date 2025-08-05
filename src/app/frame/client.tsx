@@ -152,7 +152,7 @@ export default function FarcasterFrameClient() {
   const canClaim = walletAddress && isEligible && !rateLimitData?.isRateLimited && !claimMutation.isPending;
   const passportData = passportQuery.data;
   const passportScore = passportData?.score ?? 0;
-  const ELIGIBILITY_THRESHOLD = 8;
+  const ELIGIBILITY_THRESHOLD = 10;
 
   if (!farcasterContext) {
     return (
@@ -297,7 +297,7 @@ export default function FarcasterFrameClient() {
             )}
 
             <p className="text-xs text-muted-foreground mt-2 text-center">
-              One claim per 24 hours • Base Sepolia Testnet
+              One claim per {RATE_LIMIT_HOURS} hours • Base Sepolia Testnet
             </p>
           </CardContent>
         </Card>
