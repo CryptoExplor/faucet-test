@@ -12,7 +12,7 @@ import {
 import { Passport, PassportStatus } from "./types";
 import { usePassportScore, usePassportSubmit } from "./hooks";
 
-const ELIGIBILITY_THRESHOLD = 10;
+const ELIGIBILITY_THRESHOLD = 8;
 
 type PassportContextType = {
   address?: Address;

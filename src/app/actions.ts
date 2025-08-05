@@ -17,7 +17,7 @@ const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_RE
 // Rate limiting constants
 const RATE_LIMIT_HOURS = 24; // 24 hours
 const RATE_LIMIT_SECONDS = RATE_LIMIT_HOURS * 60 * 60;
-const ELIGIBILITY_THRESHOLD = 10;
+const ELIGIBILITY_THRESHOLD = 8;
 
 export async function getPassportScore(address: string) {
     const apiKey = process.env.GITCOIN_PASSPORT_API_KEY;
