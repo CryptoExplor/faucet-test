@@ -268,7 +268,7 @@ function HomeComponent() {
                       <div className="flex items-center justify-between text-lg">
                         <span className="font-medium">Your Score:</span>
                         <Badge variant={isEligible ? "default" : "destructive"} className="bg-accent text-accent-foreground text-xl px-4 py-2">
-                          {passportScore.toFixed(2)}
+                          {passportScore?.toFixed(2) ?? '...'}
                         </Badge>
                       </div>
                       {isEligible ? (

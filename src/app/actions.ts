@@ -42,8 +42,8 @@ export async function getPassportScore(address: string) {
 
       if (response.ok) {
           const data = await response.json();
-          // Ensure score is a number, defaulting to 0 if null or invalid
-          const score = data.score ?? 0;
+          // The API returns score as a string, parse it to a number.
+          const score = data.score ? parseFloat(data.score) : 0;
           return { ...data, score: score };
       } else {
            const errorBody = await response.json();
