@@ -139,10 +139,22 @@ export async function claimTokens(address: string, chainId: number, passportScor
       console.error(`Faucet wallet has insufficient funds on chain ${chainId}.`);
       return { ok: false, message: "Faucet is currently out of funds. Please try again later." };
     }
+    
+    // **FIX:** Manually calculate and increase gas price to avoid transaction failures.
+    const feeData = await provider.getFeeData();
+    const gasPrice = feeData.gasPrice;
+
+    if (!gasPrice) {
+        return { ok: false, message: "Could not estimate gas price. The network may be busy."}
+    }
+
+    // Increase gas price by 20% to ensure transaction is processed
+    const boostedGasPrice = (gasPrice * 120n) / 100n;
 
     const tx = await wallet.sendTransaction({
       to: address,
       value: amountToSend,
+      gasPrice: boostedGasPrice,
     });
 
     const receipt = await tx.wait();
@@ -159,10 +171,11 @@ export async function claimTokens(address: string, chainId: number, passportScor
   } catch (error: any) {
     console.error(`Faucet error on chain ${chainId}:`, error);
 
+    // Provide more specific error messages for common issues.
     if (error.code === 'INSUFFICIENT_FUNDS') {
         return { ok: false, message: "Faucet is out of funds on this network." };
     }
-     if (error.code === 'NETWORK_ERROR') {
+     if (error.code === 'NETWORK_ERROR' || error.code === 'SERVER_ERROR') {
         return { ok: false, message: "Network error. Please try again later." };
     }
     
