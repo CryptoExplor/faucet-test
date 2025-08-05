@@ -1,4 +1,11 @@
 
+export enum PassportStatus {
+  DONE = "DONE",
+  PROCESSING = "PROCESSING",
+  ERROR = "ERROR",
+  NOT_FOUND = "NOT_FOUND",
+}
+
 export interface Passport {
   score: number;
   address: string;

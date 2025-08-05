@@ -38,7 +38,8 @@ import { useAccount, useDisconnect } from "wagmi";
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
 import { usePassport } from "@/lib/passport/hooks";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { PassportStatus } from "@/lib/passport/types";
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -105,8 +106,8 @@ function HomeComponent() {
     setClaimResult(null);
 
     try {
-      const score = typeof passportQuery.data.score === 'string' ? parseFloat(passportQuery.data.score) : passportQuery.data.score;
-      const result = await claimTokens(address, selectedNetwork.chainId, score);
+      const scoreValue = typeof passportQuery.data.score === 'string' ? parseFloat(passportQuery.data.score) : (passportQuery.data.score || 0);
+      const result = await claimTokens(address, selectedNetwork.chainId, scoreValue);
       if (result.ok && result.txHash && result.network) {
         setClaimResult({
           success: true,
@@ -140,8 +141,8 @@ function HomeComponent() {
   };
 
   const passportData = passportQuery.data;
-  const score = passportData?.score ? parseFloat(passportData.score as any) : 0;
-  const isEligible = score >= ELIGIBILITY_THRESHOLD;
+  const passportScore = passportData?.score ? parseFloat(passportData.score as any) : 0;
+  const isEligible = passportScore >= ELIGIBILITY_THRESHOLD;
   const canClaim = isConnected && isEligible && selectedNetwork && !isClaiming;
 
   return (
@@ -245,7 +246,7 @@ function HomeComponent() {
                       <div className="flex items-center justify-between text-lg">
                         <span className="font-medium">Your Score:</span>
                         <Badge variant={isEligible ? "default" : "destructive"} className="bg-accent text-accent-foreground text-xl px-4 py-2">
-                          {score.toFixed(2)}
+                          {passportScore.toFixed(2)}
                         </Badge>
                       </div>
                       {isEligible ? (
