@@ -30,7 +30,8 @@ export async function getPassportScore(address: string) {
     }
 
     try {
-      const response = await fetch(`https://api.scorer.gitcoin.co/registry/score/${scorerId}/${address}`, {
+      // Corrected URL: scorerId is a query parameter
+      const response = await fetch(`https://api.scorer.gitcoin.co/registry/score/${address}?scorer_id=${scorerId}`, {
            headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
       });
 
