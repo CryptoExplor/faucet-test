@@ -43,12 +43,8 @@ export async function getPassportScore(address: string) {
           
           let finalScore = 0;
 
-          // **FIX:** Prioritize the rawScore from the evidence object as it's more precise.
-          // The API can return this as a string or number, so parseFloat handles both.
-          if (data.evidence && typeof data.evidence.rawScore !== 'undefined' && data.evidence.rawScore !== null) {
-              finalScore = parseFloat(data.evidence.rawScore);
-          } else if (data.score) {
-              // Fallback to the top-level score if rawScore isn't available.
+          // **FIX:** The V2 API provides the score directly at the top level as a string.
+          if (data.score) {
               finalScore = parseFloat(data.score);
           }
           
