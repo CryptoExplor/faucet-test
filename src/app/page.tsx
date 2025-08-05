@@ -266,10 +266,12 @@ function HomeComponent() {
                          </Alert>
                       )}
                     </div>
-                  ) : ( // Covers null, NOT_FOUND, or ERROR states
+                  ) : (
                     <div className="text-center py-4">
                         <p className="text-muted-foreground mb-4">
-                          {(passportData as any)?.error ? `Error: ${(passportData as any).error}` : 'Could not find a Gitcoin Passport for this address.'}
+                          {passportData?.status === PassportStatus.ERROR 
+                            ? `Error: ${passportData.error}` 
+                            : 'Could not find a Gitcoin Passport for this address.'}
                         </p>
                         <Button onClick={() => passportSubmit.mutate()} disabled={passportSubmit.isPending}>
                             {passportSubmit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -371,3 +373,5 @@ function Home() {
 }
 
 export default Home;
+
+    
