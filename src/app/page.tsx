@@ -38,10 +38,8 @@ import { useAccount, useDisconnect } from "wagmi";
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
 import { usePassport } from "@/lib/passport/hooks";
-import { PassportStatus } from "@/lib/passport/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { getActiveNetworks } from "@/lib/networks";
-
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -63,12 +61,11 @@ function HomeComponent() {
   const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
   const [claimResult, setClaimResult] = useState<ClaimResult | null>(null);
+  const [activeNetworks, setActiveNetworks] = useState<Network[]>([]);
 
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-
-  const [activeNetworks, setActiveNetworks] = useState<Network[]>([]);
 
   useEffect(() => {
     // Fetch networks on client since this is a client component
@@ -90,7 +87,6 @@ function HomeComponent() {
     }
   }, [selectedNetwork, activeNetworks, searchParams]);
 
-
   const handleDisconnectWallet = () => {
     disconnect();
     setClaimResult(null);
@@ -105,7 +101,6 @@ function HomeComponent() {
       });
     }
   }, [passportQuery.error, toast]);
-
 
   const handleClaim = async () => {
     if (!address || !selectedNetwork?.chainId || passportQuery.data?.score === undefined) return;
@@ -149,7 +144,7 @@ function HomeComponent() {
   const passportData = passportQuery.data;
   const score = passportData?.score ?? 0;
   const isEligible = score >= ELIGIBILITY_THRESHOLD;
-  const canClaim = isEligible && selectedNetwork && !isClaiming;
+  const canClaim = isConnected && isEligible && selectedNetwork && !isClaiming;
 
   return (
     <div className="min-h-screen bg-secondary">
@@ -272,9 +267,11 @@ function HomeComponent() {
                          </Alert>
                       )}
                     </div>
-                  ) : (
+                  ) : ( // Covers null, NOT_FOUND, or ERROR states
                     <div className="text-center py-4">
-                        <p className="text-muted-foreground mb-4">Could not find a Gitcoin Passport for this address.</p>
+                        <p className="text-muted-foreground mb-4">
+                          {passportData?.error ? `Error: ${passportData.error}` : 'Could not find a Gitcoin Passport for this address.'}
+                        </p>
                         <Button onClick={() => passportSubmit.mutate()} disabled={passportSubmit.isPending}>
                             {passportSubmit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             Create/Refresh Passport

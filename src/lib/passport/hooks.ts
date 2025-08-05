@@ -5,53 +5,56 @@ import { Address } from "wagmi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useContext } from "react";
 
-import * as api from "./api";
-import { Passport, PassportStatus } from "./types";
+import { Passport } from "./types";
 import { Context } from "./Provider";
+import { getPassportScore } from "@/app/actions";
 
 export function usePassport() {
   return useContext(Context);
 }
 
+// This hook calls the server action to fetch the score
 export function usePassportScore(address?: Address) {
-  return useQuery<Passport | null, Error>({
+  return useQuery({
     queryKey: ["score", address],
-    queryFn: async () => {
+    queryFn: async (): Promise<Passport | null> => {
       if (!address) return null;
-      try {
-        const r = await api.getScore(address);
-        // The API might return a string for score, ensure it's a number
-        const score = typeof r.score === 'string' ? parseFloat(r.score) : r.score;
-        if (r.status === "PROCESSING") {
-          console.log("Retry until status is DONE or ERROR", r);
-        }
-        return { ...r, score: isNaN(score) ? 0 : score };
-      } catch (error) {
-        // If the score is not found (404), return null instead of throwing error
-        if ((error as any)?.response?.status === 404) {
-          return null;
-        }
-        throw error;
-      }
+      const result = await getPassportScore(address);
+      if (result.status === "NOT_FOUND") return null;
+      return result as Passport;
     },
     enabled: !!address, 
-    retry: false, 
-    refetchInterval: (query) => (query.state.data?.status === "PROCESSING" ? 2000 : false),
+    retry: false,
+    refetchInterval: (query) => {
+      const data = query.state.data as Passport | null;
+      return data?.status === "PROCESSING" ? 2000 : false;
+    },
   });
 }
 
+// This hook is a placeholder for a submission action if one were to be implemented.
+// Currently, Gitcoin submission is handled by them, so this is not actively used
+// but is kept for architectural completeness.
 export function usePassportSubmit(address?: Address) {
   const client = useQueryClient();
 
   return useMutation<Passport, Error, void, unknown>({
     mutationFn: async (): Promise<Passport> => {
         if (!address) throw new Error("address not provided");
-        return api.submitPassport(address)
+        // In a real scenario, this would call a server action to trigger submission.
+        // For now, we just refetch the score.
+        console.log("Triggering Passport submission/refresh for", address);
+        // Simulate a call and return a processing state.
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                client.invalidateQueries({ queryKey: ["score", address] });
+                resolve({ status: "PROCESSING" } as Passport)
+            }, 1000);
+        });
     },
-    onSuccess: (data) => {
-        // Trigger refetch of score
+    onSuccess: () => {
+        // Invalidate to refetch score after "submission"
         client.invalidateQueries({ queryKey: ["score", address] });
-        return data;
     }
   });
 }

@@ -26,7 +26,7 @@ export async function getPassportScore(address: string) {
     if (!apiKey || !scorerId) {
       console.error("Gitcoin API credentials not configured. Set GITCOIN_PASSPORT_API_KEY and GITCOIN_SCORER_ID.");
       // Return a default score instead of an error to allow claim checks to proceed
-      return { score: 0 };
+      return { score: 0, status: "ERROR", error: "Server configuration error." };
     }
 
     try {
@@ -36,22 +36,23 @@ export async function getPassportScore(address: string) {
 
       if (response.status === 404) {
           console.log(`No Gitcoin Passport found for address: ${address}`);
-          return { score: 0 };
+          return { score: 0, status: "NOT_FOUND" };
       }
 
       if (response.ok) {
           const data = await response.json();
+          // Ensure score is a number, defaulting to 0 if null or invalid
           const score = parseFloat(data.score || "0");
-          return { score };
+          return { ...data, score: isNaN(score) ? 0 : score };
       } else {
            const errorBody = await response.json();
            console.error(`Gitcoin API Error for ${address}: ${response.status}`, errorBody);
-           return { score: 0 };
+           return { score: 0, status: "ERROR", error: errorBody.detail || "Gitcoin API Error" };
       }
 
     } catch (error) {
         console.error(`Error fetching Gitcoin score for ${address}:`, error);
-        return { score: 0 };
+        return { score: 0, status: "ERROR", error: "Failed to communicate with Gitcoin API." };
     }
 }
 
@@ -86,7 +87,7 @@ export async function claimTokens(address: string, chainId: number, passportScor
 
   // Verify Passport score threshold
   if (passportScore < ELIGIBILITY_THRESHOLD) {
-    return { ok: false, message: "Insufficient Gitcoin Passport score. Minimum required: 10" };
+    return { ok: false, message: `Insufficient Gitcoin Passport score. Minimum required: ${ELIGIBILITY_THRESHOLD}` };
   }
 
   const rateLimitKey = `faucet:${address.toLowerCase()}:${selectedChain.id}`;
