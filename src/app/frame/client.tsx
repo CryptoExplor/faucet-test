@@ -1,4 +1,8 @@
-
+/*
+File: client.tsx
+Description: This file has been updated to use the centralized `usePassport` hook.
+This removes the redundant API call and ensures consistent state management with the rest of the application.
+*/
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,16 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Wallet, Shield, Coins, ExternalLink, Clock, CheckCircle, Share, Info } from "lucide-react";
+import { Wallet, Shield, Coins, ExternalLink, Clock, CheckCircle, Share, Loader2 } from "lucide-react";
 import { farcasterSDK, type FarcasterContext } from "@/components/farcaster-sdk";
 import type { Network } from "@/lib/schema";
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { useAccount, useConnect } from 'wagmi';
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
+import { usePassport } from "@/lib/passport/Provider"; // IMPORT usePassport
+import { PassportStatus } from "@/lib/passport/types"; // IMPORT PassportStatus
 
-interface PassportData {
-  score: number;
-  isEligible: boolean;
-}
 
 interface RateLimitData {
   isRateLimited: boolean;
@@ -51,7 +53,9 @@ export default function FarcasterFrameClient() {
   
   const { address: walletAddress, isConnected } = useAccount();
   const { connect } = useConnect();
-  const { disconnect } = useDisconnect();
+  
+  // Use the centralized passport hook for score and eligibility
+  const { score: passportQuery, isEligible, submit: passportSubmit } = usePassport();
 
   // Use Base Sepolia as the default network for the frame
   const { data: networkData } = useQuery<{networks: Network[]}>({
@@ -82,19 +86,6 @@ export default function FarcasterFrameClient() {
     initFarcaster();
   }, [toast, connect, isConnected]);
 
-  // Fetch Gitcoin Passport score
-  const { data: passportData, isLoading: passportLoading, error: passportError } = useQuery<PassportData>({
-    queryKey: ["/api/passport", walletAddress],
-    enabled: !!walletAddress,
-    queryFn: async () => {
-        if (!walletAddress) throw new Error("Wallet address not available");
-        const res = await fetch(`/api/passport/${walletAddress}`);
-        if (!res.ok) throw new Error("Failed to fetch passport score");
-        return res.json();
-    },
-    retry: false,
-  });
-
   // Check rate limiting
   const { data: rateLimitData } = useQuery<RateLimitData>({
     queryKey: ["/api/rate-limit", walletAddress, baseSepolia?.id],
@@ -111,14 +102,14 @@ export default function FarcasterFrameClient() {
   // Claim tokens mutation
   const claimMutation = useMutation({
     mutationFn: async () => {
-      if (!walletAddress || !passportData || !baseSepolia) {
+      if (!walletAddress || !passportQuery.data || !baseSepolia) {
         throw new Error("Wallet, passport data, or network not available");
       }
       
       const response = await apiRequest("POST", "/api/claim", {
         address: walletAddress,
         chainId: baseSepolia.chainId,
-        passportScore: passportData.score,
+        passportScore: passportQuery.data.score,
       });
       
       return response.json() as Promise<ClaimResponse>;
@@ -158,8 +149,10 @@ export default function FarcasterFrameClient() {
     });
   };
 
-  const isEligible = passportData && passportData.score >= 10;
   const canClaim = walletAddress && isEligible && !rateLimitData?.isRateLimited && !claimMutation.isPending;
+  const passportData = passportQuery.data;
+  const passportScore = passportData?.score ?? 0;
+  const ELIGIBILITY_THRESHOLD = 8;
 
   if (!farcasterContext) {
     return (
@@ -221,31 +214,46 @@ export default function FarcasterFrameClient() {
               Gitcoin Passport
             </h3>
             
-            {passportLoading ? (
+            {passportQuery.isLoading ? (
               <div className="flex items-center justify-center py-4">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-3"></div>
                 <span className="text-muted-foreground">Checking score...</span>
               </div>
-            ) : passportError ? (
+            ) : passportQuery.isError ? (
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
                  <p className="text-destructive text-sm">
-                  No Passport found. Create one at passport.gitcoin.co
+                  {passportQuery.error.message}
                 </p>
               </div>
-            ) : passportData ? (
+            ) : !passportData || passportData.status === PassportStatus.NOT_FOUND ? (
+                <div className="text-center py-4">
+                    <p className="text-muted-foreground mb-4">
+                        No Passport found. Create one at passport.gitcoin.co
+                    </p>
+                    <Button onClick={() => passportSubmit.mutate()} disabled={passportSubmit.isPending}>
+                        {passportSubmit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Create/Refresh Passport
+                    </Button>
+                </div>
+            ) : passportData.status === PassportStatus.PROCESSING ? (
+                <div className="flex items-center justify-center gap-2 p-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span className="text-muted-foreground">Your score is processing...</span>
+                </div>
+            ) : (
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-2xl font-bold text-foreground">{passportData.score.toFixed(1)}</span>
+                    <span className="text-2xl font-bold text-foreground">{passportScore.toFixed(1)}</span>
                      <Badge variant={isEligible ? "default" : "destructive"}>
-                      {isEligible ? "Eligible" : "Need 10+"}
+                      {isEligible ? "Eligible" : `Need ${ELIGIBILITY_THRESHOLD}+`}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">Score / 10 required</p>
+                  <p className="text-sm text-muted-foreground">Score / {ELIGIBILITY_THRESHOLD} required</p>
                 </div>
                 <CheckCircle className={`h-8 w-8 ${isEligible ? "text-green-500" : "text-destructive"}`} />
               </div>
-            ) : null}
+            )}
           </CardContent>
         </Card>
 
@@ -258,7 +266,7 @@ export default function FarcasterFrameClient() {
 
             {!isEligible ? (
               <Button disabled className="w-full">
-                Need Gitcoin Passport Score ≥ 10
+                Need Gitcoin Passport Score ≥ {ELIGIBILITY_THRESHOLD}
               </Button>
             ) : rateLimitData?.isRateLimited ? (
               <div>
@@ -281,6 +289,7 @@ export default function FarcasterFrameClient() {
               <Button 
                 onClick={() => claimMutation.mutate()}
                 className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                disabled={!canClaim}
               >
                 <Coins className="mr-2 h-4 w-4" />
                 Claim Test ETH
