@@ -20,14 +20,17 @@ export function usePassportScore(address?: Address) {
     queryFn: async (): Promise<Passport | null> => {
       if (!address) return null;
       const result = await getPassportScore(address);
-      if (result.status === "NOT_FOUND") return null;
+      if (result.status === PassportStatus.NOT_FOUND) return null;
       return result as Passport;
     },
-    enabled: !!address, 
+    enabled: !!address,
     retry: false,
     refetchInterval: (query) => {
-      const data = query.state.data as Passport | null;
-      return data?.status === PassportStatus.PROCESSING ? 2000 : false;
+      const data = query.state.data;
+      if (data && typeof data === "object" && "status" in data) {
+        return (data as Passport).status === PassportStatus.PROCESSING ? 2000 : false;
+      }
+      return false;
     },
   });
 }
@@ -40,21 +43,26 @@ export function usePassportSubmit(address?: Address) {
 
   return useMutation<Passport, Error, void, unknown>({
     mutationFn: async (): Promise<Passport> => {
-        if (!address) throw new Error("address not provided");
-        // In a real scenario, this would call a server action to trigger submission.
-        // For now, we just refetch the score.
-        console.log("Triggering Passport submission/refresh for", address);
-        // Simulate a call and return a processing state.
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                client.invalidateQueries({ queryKey: ["score", address] });
-                resolve({ status: "PROCESSING" } as Passport)
-            }, 1000);
-        });
+      if (!address) throw new Error("address not provided");
+      // In a real scenario, this would call a server action to trigger submission.
+      // For now, we just refetch the score.
+      console.log("Triggering Passport submission/refresh for", address);
+      // Simulate a call and return a processing state.
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          client.invalidateQueries({ queryKey: ["score", address] });
+          resolve({
+            score: null,
+            address,
+            status: PassportStatus.PROCESSING,
+            last_score_timestamp: new Date().toISOString(),
+          } as Passport);
+        }, 1000);
+      });
     },
     onSuccess: () => {
-        // Invalidate to refetch score after "submission"
-        client.invalidateQueries({ queryKey: ["score", address] });
-    }
+      // Invalidate to refetch score after "submission"
+      client.invalidateQueries({ queryKey: ["score", address] });
+    },
   });
 }
