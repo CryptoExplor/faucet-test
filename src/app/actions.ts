@@ -42,8 +42,8 @@ export async function getPassportScore(address: string) {
       if (response.ok) {
           const data = await response.json();
           // Ensure score is a number, defaulting to 0 if null or invalid
-          const score = parseFloat(data.score || "0");
-          return { ...data, score: isNaN(score) ? 0 : score };
+          const score = data.score ?? 0;
+          return { ...data, score: score };
       } else {
            const errorBody = await response.json();
            console.error(`Gitcoin API Error for ${address}: ${response.status}`, errorBody);
