@@ -15,7 +15,7 @@ const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_RE
   : null;
 
 // Rate limiting constants
-const RATE_LIMIT_HOURS = 24; // 24 hours
+const RATE_LIMIT_HOURS = 24;
 const RATE_LIMIT_SECONDS = RATE_LIMIT_HOURS * 60 * 60;
 const ELIGIBILITY_THRESHOLD = 8;
 
@@ -25,12 +25,10 @@ export async function getPassportScore(address: string) {
 
     if (!apiKey || !scorerId) {
       console.error("Gitcoin API credentials not configured. Set GITCOIN_PASSPORT_API_KEY and GITCOIN_SCORER_ID.");
-      // Return a specific error to help debug deployment issues.
       return { score: 0, status: "ERROR", error: "Gitcoin API credentials not configured on the server." };
     }
 
     try {
-      // Corrected URL based on documentation: scorer_id is part of the path
       const response = await fetch(`https://api.scorer.gitcoin.co/registry/score/${scorerId}/${address}`, {
            headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
       });
@@ -42,9 +40,25 @@ export async function getPassportScore(address: string) {
 
       if (response.ok) {
           const data = await response.json();
-          // The API returns score as a string, parse it to a number.
-          const score = data.score ? parseFloat(data.score) : 0;
-          return { ...data, score: score };
+          
+          let finalScore = 0;
+
+          // **FIX:** Prioritize the rawScore from the evidence object as it's more precise.
+          // The API can return this as a string or number, so parseFloat handles both.
+          if (data.evidence && typeof data.evidence.rawScore !== 'undefined' && data.evidence.rawScore !== null) {
+              finalScore = parseFloat(data.evidence.rawScore);
+          } else if (data.score) {
+              // Fallback to the top-level score if rawScore isn't available.
+              finalScore = parseFloat(data.score);
+          }
+          
+          // Ensure the final score is a valid number, defaulting to 0 if parsing fails.
+          if (isNaN(finalScore)) {
+              finalScore = 0;
+          }
+
+          // Return the full data object but with the correctly parsed score.
+          return { ...data, score: finalScore };
       } else {
            const errorBody = await response.json();
            console.error(`Gitcoin API Error for ${address}: ${response.status}`, errorBody);
