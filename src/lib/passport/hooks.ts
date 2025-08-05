@@ -5,7 +5,7 @@ import { Address } from "wagmi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useContext } from "react";
 
-import { Passport } from "./types";
+import { Passport, PassportStatus } from "./types";
 import { Context } from "./Provider";
 import { getPassportScore } from "@/app/actions";
 
@@ -27,7 +27,7 @@ export function usePassportScore(address?: Address) {
     retry: false,
     refetchInterval: (query) => {
       const data = query.state.data as Passport | null;
-      return data?.status === "PROCESSING" ? 2000 : false;
+      return data?.status === PassportStatus.PROCESSING ? 2000 : false;
     },
   });
 }

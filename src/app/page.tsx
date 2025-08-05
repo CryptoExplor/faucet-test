@@ -236,12 +236,12 @@ function HomeComponent() {
                       <BadgeCheck className="text-muted-foreground/50 text-3xl mx-auto mb-3" />
                       <p className="text-muted-foreground">Connect your wallet to check your score</p>
                     </div>
-                  ) : passportQuery.isLoading || (passportData && passportData.status === "PROCESSING") ? (
+                  ) : passportQuery.isLoading || passportData?.status === PassportStatus.PROCESSING ? (
                     <div className="flex items-center justify-center gap-2 p-4">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span className="text-muted-foreground">Verifying Passport...</span>
                     </div>
-                  ) : (passportData && passportData.status === "DONE") ? (
+                  ) : passportData?.status === PassportStatus.DONE ? (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between text-lg">
                         <span className="font-medium">Your Score:</span>
