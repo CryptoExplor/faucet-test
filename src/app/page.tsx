@@ -37,7 +37,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAccount, useDisconnect } from "wagmi";
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { NetworkSelector } from "@/components/network-selector";
-import { usePassport } from "@/lib/passport/hooks";
+import { usePassport } from "@/lib/passport/Provider";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { PassportStatus } from "@/lib/passport/types";
 
@@ -56,7 +56,7 @@ function HomeComponent() {
   const { open } = useWeb3Modal()
   const { isConnected, address } = useAccount()
   const { disconnect } = useDisconnect()
-  const { score: passportQuery, submit: passportSubmit } = usePassport();
+  const { score: passportQuery, submit: passportSubmit, isEligible } = usePassport();
 
   const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
@@ -106,7 +106,7 @@ function HomeComponent() {
     setClaimResult(null);
 
     try {
-      const scoreValue = typeof passportQuery.data.score === 'string' ? parseFloat(passportQuery.data.score) : (passportQuery.data.score || 0);
+      const scoreValue = passportQuery.data.score ?? 0;
       const result = await claimTokens(address, selectedNetwork.chainId, scoreValue);
       if (result.ok && result.txHash && result.network) {
         setClaimResult({
@@ -141,8 +141,7 @@ function HomeComponent() {
   };
 
   const passportData = passportQuery.data;
-  const passportScore = passportData?.score ? parseFloat(passportData.score as any) : 0;
-  const isEligible = passportScore >= ELIGIBILITY_THRESHOLD;
+  const passportScore = passportData?.score ?? 0;
   const canClaim = isConnected && isEligible && selectedNetwork && !isClaiming;
 
   return (
@@ -241,6 +240,14 @@ function HomeComponent() {
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span className="text-muted-foreground">Verifying Passport...</span>
                     </div>
+                  ) : passportQuery.isError ? (
+                     <Alert variant="destructive">
+                       <XCircle className="h-4 w-4" />
+                       <AlertTitle>Error Verifying Passport</AlertTitle>
+                       <AlertDescription>
+                         {passportQuery.error.message}
+                       </AlertDescription>
+                     </Alert>
                   ) : passportData?.status === PassportStatus.DONE ? (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between text-lg">
@@ -269,9 +276,7 @@ function HomeComponent() {
                   ) : (
                     <div className="text-center py-4">
                         <p className="text-muted-foreground mb-4">
-                          {passportData?.status === PassportStatus.ERROR 
-                            ? `Error: ${passportData.error}` 
-                            : 'Could not find a Gitcoin Passport for this address.'}
+                          Could not find a Gitcoin Passport for this address.
                         </p>
                         <Button onClick={() => passportSubmit.mutate()} disabled={passportSubmit.isPending}>
                             {passportSubmit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -373,5 +378,3 @@ function Home() {
 }
 
 export default Home;
-
-    

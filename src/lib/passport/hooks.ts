@@ -50,7 +50,6 @@ export function usePassportSubmit(address?: Address) {
       // Simulate a call and return a processing state.
       return new Promise((resolve) => {
         setTimeout(() => {
-          client.invalidateQueries({ queryKey: ["score", address] });
           resolve({
             score: null,
             address,
@@ -60,9 +59,10 @@ export function usePassportSubmit(address?: Address) {
         }, 1000);
       });
     },
-    onSuccess: () => {
-      // Invalidate to refetch score after "submission"
-      client.invalidateQueries({ queryKey: ["score", address] });
-    },
+    onSettled: () => {
+        if(address) {
+            client.invalidateQueries({ queryKey: ["score", address] });
+        }
+    }
   });
 }
