@@ -25,8 +25,8 @@ export async function getPassportScore(address: string) {
 
     if (!apiKey || !scorerId) {
       console.error("Gitcoin API credentials not configured. Set GITCOIN_PASSPORT_API_KEY and GITCOIN_SCORER_ID.");
-      // Return a default score instead of an error to allow claim checks to proceed
-      return { score: 0, status: "ERROR", error: "Server configuration error." };
+      // Return a specific error to help debug deployment issues.
+      return { score: 0, status: "ERROR", error: "Gitcoin API credentials not configured on the server." };
     }
 
     try {
