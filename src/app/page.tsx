@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
@@ -40,6 +39,7 @@ import { NetworkSelector } from "@/components/network-selector";
 import { usePassport } from "@/lib/passport/Provider";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { PassportStatus } from "@/lib/passport/types";
+import { sdk } from '@farcaster/sdk'; // Farcaster SDK import
 
 const ELIGIBILITY_THRESHOLD = 10;
 
@@ -70,6 +70,27 @@ function HomeComponent() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+
+  // Farcaster SDK Ready Signal
+  useEffect(() => {
+    const initializeFarcaster = async () => {
+      if (typeof window === 'undefined') return;
+      if (!sdk.isFarcasterApp()) return;
+
+      try {
+        // Optional: Fetch Farcaster profile for better UX
+        const profile = await sdk.getProfile();
+        console.log('Farcaster user profile:', profile);
+      } catch (error) {
+        console.warn('Failed to fetch Farcaster profile:', error);
+      } finally {
+        // Critical: Signal that the Mini App is ready
+        sdk.actions.ready();
+      }
+    };
+
+    initializeFarcaster();
+  }, []);
 
   useEffect(() => {
     if (!selectedNetwork && activeNetworks.length > 0) {
