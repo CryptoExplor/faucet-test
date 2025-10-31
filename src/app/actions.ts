@@ -1,19 +1,10 @@
-
 "use server";
 
 import { ethers } from "ethers";
 import { z } from "zod";
 import { getNetworkByChainId } from "@/lib/networks";
-import { Redis } from "@upstash/redis";
+import { kv } from "@vercel/kv";
 import { Passport, PassportStatus } from "@/lib/passport/types";
-
-// Initialize Redis client for rate limiting
-const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN 
-  ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    })
-  : null;
 
 // Rate limiting constants
 const RATE_LIMIT_HOURS = 168;
@@ -51,8 +42,6 @@ export async function getPassportScore(address: string): Promise<Passport> {
               finalScore = 0;
           }
 
-          // **FIX:** Construct a valid Passport object with the correct status.
-          // The API response doesn't have a 'status' field, so we set it based on success.
           return {
             ...data,
             address,
@@ -73,11 +62,6 @@ export async function getPassportScore(address: string): Promise<Passport> {
 
 
 export async function claimTokens(address: string, chainId: number, passportScore: number) {
-  if (!redis) {
-    console.error("Upstash Redis not configured. Rate limiting is disabled.");
-    return { ok: false, message: "Server configuration error: Rate limiting service is unavailable." };
-  }
-  
   const schema = z.object({
     address: z.string().refine((addr) => ethers.isAddress(addr), {
       message: "Invalid Ethereum address provided.",
@@ -106,15 +90,20 @@ export async function claimTokens(address: string, chainId: number, passportScor
   }
 
   const rateLimitKey = `faucet:${address.toLowerCase()}:${selectedChain.id}`;
-  const existingClaim = await redis.get(rateLimitKey);
+  
+  try {
+    const existingClaim = await kv.get(rateLimitKey);
 
-  if (existingClaim) {
-    const remainingTime = await redis.ttl(rateLimitKey);
-    const hours = Math.floor(remainingTime / 3600);
-    const minutes = Math.floor((remainingTime % 3600) / 60);
-    return { ok: false, message: `You have already claimed on this network. Please try again in ${hours}h ${minutes}m.` };
+    if (existingClaim) {
+      const remainingTime = await kv.ttl(rateLimitKey);
+      const hours = Math.floor(remainingTime / 3600);
+      const minutes = Math.floor((remainingTime % 3600) / 60);
+      return { ok: false, message: `You have already claimed on this network. Please try again in ${hours}h ${minutes}m.` };
+    }
+  } catch (error) {
+    console.error("Vercel KV error checking rate limit:", error);
+    return { ok: false, message: "Rate limiting service unavailable. Please try again later." };
   }
-
 
   const privateKey = process.env.FAUCET_PRIVATE_KEY;
   if (!privateKey) {
@@ -140,7 +129,6 @@ export async function claimTokens(address: string, chainId: number, passportScor
       return { ok: false, message: "Faucet is currently out of funds. Please try again later." };
     }
     
-    // **FIX:** Manually calculate and increase gas price to avoid transaction failures.
     const feeData = await provider.getFeeData();
     const gasPrice = feeData.gasPrice;
 
@@ -163,15 +151,18 @@ export async function claimTokens(address: string, chainId: number, passportScor
         return { ok: false, message: "Transaction failed to confirm."}
     }
     
-    // Set rate limit flag in Redis
-    await redis.set(rateLimitKey, "claimed", { ex: RATE_LIMIT_SECONDS });
-
+    // Set rate limit flag in Vercel KV
+    try {
+      await kv.set(rateLimitKey, "claimed", { ex: RATE_LIMIT_SECONDS });
+    } catch (error) {
+      console.error("Vercel KV error setting rate limit:", error);
+      // Don't fail the transaction if rate limiting fails to be set
+    }
 
     return { ok: true, txHash: receipt.hash, message: "Transaction successful!", network: selectedChain };
   } catch (error: any) {
     console.error(`Faucet error on chain ${chainId}:`, error);
 
-    // Provide more specific error messages for common issues.
     if (error.code === 'INSUFFICIENT_FUNDS') {
         return { ok: false, message: "Faucet is out of funds on this network." };
     }
@@ -184,16 +175,17 @@ export async function claimTokens(address: string, chainId: number, passportScor
 }
 
 export async function checkRateLimit(address: string, networkId: string) {
-    if (!redis) {
-        console.error("Upstash Redis not configured. Cannot check rate limit.");
-        return { isRateLimited: false, remainingTime: null };
-    }
-    const rateLimitKey = `faucet:${address.toLowerCase()}:${networkId}`;
-    const remainingTime = await redis.ttl(rateLimitKey);
+    try {
+      const rateLimitKey = `faucet:${address.toLowerCase()}:${networkId}`;
+      const remainingTime = await kv.ttl(rateLimitKey);
 
-    if (remainingTime > 0) {
-        return { isRateLimited: true, remainingTime: remainingTime * 1000 }; // convert to ms
-    }
+      if (remainingTime > 0) {
+          return { isRateLimited: true, remainingTime: remainingTime * 1000 };
+      }
 
-    return { isRateLimited: false, remainingTime: null };
+      return { isRateLimited: false, remainingTime: null };
+    } catch (error) {
+      console.error("Vercel KV error checking rate limit:", error);
+      return { isRateLimited: false, remainingTime: null };
+    }
 }
