@@ -1,8 +1,3 @@
-/*
-File: client.tsx
-Description: This file has been updated to use the centralized `usePassport` hook.
-This removes the redundant API call and ensures consistent state management with the rest of the application.
-*/
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,11 +10,11 @@ import { apiRequest } from "@/lib/queryClient";
 import { Wallet, Shield, Coins, ExternalLink, Clock, CheckCircle, Share, Loader2 } from "lucide-react";
 import { farcasterSDK, type FarcasterContext } from "@/components/farcaster-sdk";
 import type { Network } from "@/lib/schema";
-import { useAccount, useConnect } from 'wagmi';
-import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
-import { usePassport } from "@/lib/passport/Provider"; // IMPORT usePassport
-import { PassportStatus } from "@/lib/passport/types"; // IMPORT PassportStatus
+import { useAccount } from 'wagmi';
+import { usePassport } from "@/lib/passport/Provider";
+import { PassportStatus } from "@/lib/passport/types";
 
+const RATE_LIMIT_HOURS = 168;
 
 interface RateLimitData {
   isRateLimited: boolean;
@@ -50,11 +45,9 @@ export default function FarcasterFrameClient() {
   const [farcasterContext, setFarcasterContext] = useState<FarcasterContext | null>(null);
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
   const [lastClaimNetwork, setLastClaimNetwork] = useState<Network | null>(null);
+  const [isReady, setIsReady] = useState(false);
   
-  const { address: walletAddress, isConnected } = useAccount();
-  const { connect } = useConnect();
-  
-  // Use the centralized passport hook for score and eligibility
+  const { address: walletAddress } = useAccount();
   const { score: passportQuery, isEligible, submit: passportSubmit } = usePassport();
 
   // Use Base Sepolia as the default network for the frame
@@ -63,28 +56,29 @@ export default function FarcasterFrameClient() {
   });
   const baseSepolia = networkData?.networks.find(n => n.chainId === 84532);
 
-  // Initialize Farcaster SDK and connect wallet
+  // Initialize Farcaster SDK
   useEffect(() => {
-    farcasterSDK.ready();
     const initFarcaster = async () => {
       try {
+        // Signal that the app is ready
+        await farcasterSDK.ready();
+        setIsReady(true);
+        
+        // Get context
         const context = await farcasterSDK.getContext();
         setFarcasterContext(context);
-        if (!isConnected) {
-            connect({ connector: farcasterMiniApp() });
-        }
       } catch (error) {
         console.error('Failed to initialize Farcaster SDK:', error);
         toast({
           title: "Connection Error",
-          description: "Not in a Farcaster client.",
+          description: "Not in a Farcaster client or failed to load context.",
           variant: "destructive",
         });
       }
     };
 
     initFarcaster();
-  }, [toast, connect, isConnected]);
+  }, [toast]);
 
   // Check rate limiting
   const { data: rateLimitData } = useQuery<RateLimitData>({
@@ -154,7 +148,7 @@ export default function FarcasterFrameClient() {
   const passportScore = passportData?.score ?? 0;
   const ELIGIBILITY_THRESHOLD = 10;
 
-  if (!farcasterContext) {
+  if (!isReady || !farcasterContext) {
     return (
       <div className="min-h-screen bg-secondary flex items-center justify-center">
         <div className="text-center">
