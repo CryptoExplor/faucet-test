@@ -39,7 +39,7 @@ import { NetworkSelector } from "@/components/network-selector";
 import { usePassport } from "@/lib/passport/Provider";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { PassportStatus } from "@/lib/passport/types";
-import { sdk } from '@farcaster/sdk'; // Farcaster SDK import
+import { sdk } from '@farcaster/miniapp-sdk'; // Corrected: Official Mini App SDK
 
 const ELIGIBILITY_THRESHOLD = 10;
 
