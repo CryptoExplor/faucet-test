@@ -1,0 +1,23 @@
+{
+  "frame": {
+    "name": "Superchain Faucet",
+    "version": "1",
+    "iconUrl": "https://faucet-test-flax.vercel.app/icon.png",
+    "homeUrl": "https://faucet-test-flax.vercel.app",
+    "imageUrl": "https://faucet-test-flax.vercel.app/image.png",
+    "splashImageUrl": "https://faucet-test-flax.vercel.app/splash.png",
+    "splashBackgroundColor": "#F5EEFC",
+    "webhookUrl": "https://faucet-test-flax.vercel.app/api/webhook",
+    "subtitle": "multi-chain faucet",
+    "description": "A multi-chain faucet for Sepolia testnets",
+    "primaryCategory": "utility"
+  },
+  "baseBuilder": {
+    "ownerAddress": "0xA5f2c343813B6fb6fE947C2C4759F2c421a346a7"
+  },
+  "accountAssociation": {
+    "header": "eyJmaWQiOjYxMjA2NiwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDE4MjhjNEJmNzhEQWI2NkI0QjdkZUJmYUEzOEYwQWQxMjVFYzhkMTUifQ",
+    "payload": "eyJkb21haW4iOiJmYXVjZXQtdGVzdC1mbGF4LnZlcmNlbC5hcHAifQ",
+    "signature": "8DKrvMZvb19MMYpo+K4QfB3TEuUQ+5FcYt6dOvQb9Kw7j5tZOryBZMfLO0ldcB/NZ9c81ojRN2SCAQ0zl0D6Xhw="
+  }
+}
