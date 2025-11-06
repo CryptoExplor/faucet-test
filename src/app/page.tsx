@@ -81,14 +81,12 @@ function HomeComponent() {
         // Optional: Fetch Farcaster profile for better UX
         const profile = await sdk.getProfile();
         console.log('Farcaster user profile:', profile);
+        sdk.actions.ready(); // Call ONLY after confirming SDK/Env
+        console.log("Farcaster Mini App signaled ready");
       } catch (error) {
         console.warn('Failed to fetch Farcaster profile:', error);
-      } finally {
-        // Critical: Signal that the Mini App is ready
-        sdk.actions.ready();
       }
     };
-
     initializeFarcaster();
   }, []);
 
